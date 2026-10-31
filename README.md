@@ -21,12 +21,12 @@ Chat-first local MCP demo client for protected MCP demos behind a PingOne Privil
 npm start
 ```
 
-Then open: **http://127.0.0.1:33418**
+Then open: **http://127.0.0.1:6884**
 
 ## Register this OAuth callback
 
 ```
-http://127.0.0.1:33418/auth/callback
+http://127.0.0.1:6884/auth/callback
 ```
 
 ## Requirements

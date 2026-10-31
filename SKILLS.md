@@ -15,12 +15,12 @@ cd mcp-demo-client-for-privilige
 npm start
 ```
 
-Open: `http://127.0.0.1:33418`
+Open: `http://127.0.0.1:6884`
 
 ## Health check
 
 ```bash
-curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:33418
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:6884
 # Expected: 200
 ```
 
@@ -39,7 +39,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:33418
 Register this in your OAuth app:
 
 ```
-http://127.0.0.1:33418/auth/callback
+http://127.0.0.1:6884/auth/callback
 ```
 
 ## PingOne remote MCP pattern

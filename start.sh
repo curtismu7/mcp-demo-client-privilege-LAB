@@ -14,7 +14,7 @@ sleep 1
 
 if kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
   echo "Started (PID $(cat "$PIDFILE"))"
-  echo "  App:  http://127.0.0.1:33418"
+  echo "  App:  http://127.0.0.1:6884"
   echo "  Logs: $DIR/mcp-demo.log"
 else
   echo "Failed to start. Check mcp-demo.log"
