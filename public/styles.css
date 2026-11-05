@@ -1,11 +1,26 @@
+:root {
+  --bg: #0d1117;
+  --text: #e6edf3;
+  --line: #30363d;
+  --muted: #8b949e;
+  --panel: #161b22;
+  --focus: #58a6ff;
+  --panel-2: #1f2937;
+  --panel-3: #111827;
+  --info-bg: #172534;
+  --info-text: #7dd3fc;
+  --info-border: #3b82f6;
+  --info-accent: #93c5fd;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: #0d1117;
-  color: #e6edf3;
+  background: var(--bg);
+  color: var(--text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
@@ -15,7 +30,7 @@ body {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid var(--line);
 }
 
 .topbar h1 {
@@ -25,16 +40,17 @@ body {
 
 .topbar p {
   margin: 4px 0 0;
-  color: #8b949e;
+  color: var(--muted);
   font-size: 13px;
 }
 
 .pill {
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid #30363d;
+  border: 1px solid var(--line);
   font-size: 12px;
-  color: #8b949e;
+  color: var(--muted);
+  background: var(--panel);
 }
 
 .layout {
@@ -46,8 +62,8 @@ body {
 }
 
 .panel {
-  background: #161b22;
-  border: 1px solid #30363d;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 12px;
   overflow: hidden;
@@ -69,7 +85,7 @@ label {
   gap: 6px;
   margin-bottom: 8px;
   font-size: 12px;
-  color: #8b949e;
+  color: var(--muted);
 }
 
 input,
@@ -77,9 +93,9 @@ textarea,
 select,
 button {
   width: 100%;
-  background: #0d1117;
-  color: #e6edf3;
-  border: 1px solid #30363d;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 8px;
   font: inherit;
@@ -95,7 +111,7 @@ button {
 }
 
 button:hover {
-  border-color: #58a6ff;
+  border-color: var(--focus);
 }
 
 .buttons {
@@ -106,8 +122,8 @@ button:hover {
 
 pre {
   margin: 0;
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
   white-space: pre-wrap;
@@ -137,8 +153,8 @@ pre {
 .chatMessages {
   flex: 1;
   overflow: auto;
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
   display: flex;
@@ -148,7 +164,7 @@ pre {
 
 .bubble {
   max-width: 92%;
-  border: 1px solid #30363d;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px;
   font-size: 13px;
@@ -157,26 +173,26 @@ pre {
 
 .bubble.user {
   align-self: flex-end;
-  background: #1f2937;
+  background: var(--panel-2);
 }
 
 .bubble.assistant {
   align-self: flex-start;
-  background: #111827;
+  background: var(--panel-3);
 }
 
 .bubble.system {
   align-self: center;
-  background: #172534;
-  color: #7dd3fc;
+  background: var(--info-bg);
+  color: var(--info-text);
   font-size: 12px;
 }
 
 .thinking {
-  border: 1px dashed #3b82f6;
+  border: 1px dashed var(--info-border);
   border-radius: 8px;
   padding: 8px;
-  color: #93c5fd;
+  color: var(--info-accent);
   font-size: 12px;
 }
 
@@ -208,13 +224,27 @@ pre {
 }
 
 details {
-  border: 1px solid #30363d;
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 8px;
 }
 
 details summary {
   cursor: pointer;
-  color: #93c5fd;
+  color: var(--info-accent);
   margin-bottom: 6px;
 }
+
+.banner {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent, var(--focus));
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  max-width: 60ch;
+}
+
+.pill-ok { color: var(--status-ok); border-color: var(--status-ok); }
+.pill-bad { color: var(--danger-text); border-color: var(--danger-text); }

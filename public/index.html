@@ -4,13 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MCP Privilege Demo Chat</title>
+    <link rel="stylesheet" href="./standalone-ui.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header class="topbar">
       <div>
         <h1>MCP Privilege Demo Chat</h1>
-        <p>Claude-style MCP demo with real-time protected tool visibility.</p>
+        <p class="banner" role="note">SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.</p>
       </div>
       <div class="pill" id="connectionPill">Disconnected</div>
     </header>
