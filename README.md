@@ -1,9 +1,40 @@
-# MCP Demo Client for Privilige
+# MCP Demo Client for Privilege LAB
 
 Tier: Demo
 
+Repo: https://github.com/curtismu7/mcp-demo-client-privilege-LAB
+
 
 Chat-first local MCP demo client for protected MCP demos behind a PingOne Privilege gateway.
+
+## Run from a clone
+
+Prerequisites: Node 26. Docker (OrbStack) only for the Docker form.
+
+```
+git clone https://github.com/curtismu7/mcp-demo-client-privilege-LAB.git
+cd mcp-demo-client-privilege-LAB
+npm ci
+npm run build
+npm run doctor
+npm start
+```
+
+## Ports, and what to do if the port is taken
+
+```
+Ports: mcp-demo-client-privilege-LAB listens on 6884 (set with PORT, default 6884).
+Port range for this app: 6880-6889.
+
+If the port is taken:
+1. Find what is using it:
+   lsof -iTCP:6884 -sTCP:LISTEN -n -P
+2. If it is an old copy of this app, stop that process: kill <PID>.
+3. If it is something else, stop it, or start this app on another port:
+   PORT=<other port> npm start
+```
+
+Other variable: `None` (Docker host port). Keep both inside 6880-6889.
 
 ## Features
 
