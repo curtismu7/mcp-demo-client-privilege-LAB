@@ -1,0 +1,18 @@
+{
+  "demos": [
+    {
+      "id": "mcp-demo-client-privilege",
+      "name": "MCP Demo Client for Privilege",
+      "kind": "Tester",
+      "description": "Chat-first local MCP demo client for protected MCP demos behind a PingOne Privilege gateway: OAuth browser login, tool discovery, raw JSON-RPC, and an LLM lane that shows whether a call routes through the gateway (PRIVILEGE) or direct. Ollama-backed router by default; mock, no tenant needed.",
+      "url": "http://localhost:6884",
+      "healthPath": "/api/health",
+      "composeFile": null,
+      "composeOverlays": [],
+      "catalogId": null,
+      "notes": "Host-run: npm install && npm start (port 6884; npm run doctor checks it). No docker-compose.yml in this repo; host-run only. Mock works fully offline; Live mode is optional and env-configured (LLM_API_KEY, .env).",
+      "repo": "https://github.com/curtismu7/mcp-demo-client-privilege-LAB",
+      "where": "installed"
+    }
+  ]
+}

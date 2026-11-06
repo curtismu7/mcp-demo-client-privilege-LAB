@@ -8,7 +8,7 @@ import { buildLlmRequest, readLlmReply, llmPath } from './llm.js';
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 const LLM_API_KEY = process.env.LLM_API_KEY || '';
 const HOST = '127.0.0.1';
-const PORT = 6884;
+const PORT = Number(process.env.PORT) || 6884;
 const STATIC_DIR = path.resolve('public');
 
 const state = {
@@ -45,8 +45,8 @@ function emitEvent(type, payload) {
   }
 }
 
-function json(res, statusCode, payload) {
-  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+function json(res, statusCode, payload, extraHeaders = {}) {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json', ...extraHeaders });
   res.end(JSON.stringify(payload));
 }
 
@@ -673,6 +673,17 @@ async function handleDemoChat(req, res) {
 
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/health') {
+    json(res, 200, {
+      schema: 'demo-health/1',
+      at: nowIso(),
+      state: 'ready',
+      runtime: process.env.LLM_API_KEY ? 'live' : 'offline',
+      demo: { id: 'mcp-demo-client-privilege', name: 'MCP Demo Client for Privilege', version: '1.0.0' }
+    }, { 'Cache-Control': 'no-store' });
+    return;
+  }
 
   if (req.method === 'GET' && parsedUrl.pathname === '/api/events') {
     res.writeHead(200, {
