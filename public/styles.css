@@ -248,3 +248,19 @@ details summary {
 
 .pill-ok { color: var(--status-ok); border-color: var(--status-ok); }
 .pill-bad { color: var(--danger-text); border-color: var(--danger-text); }
+
+.shell-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+.shell-theme select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+}

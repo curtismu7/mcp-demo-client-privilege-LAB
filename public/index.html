@@ -6,6 +6,12 @@
     <title>MCP Privilege Demo Chat</title>
     <link rel="stylesheet" href="./standalone-ui.css" />
     <link rel="stylesheet" href="./styles.css" />
+    <script>
+      (function () {
+        var t = localStorage.getItem("mcpdcp.theme");
+        if (t && t !== "auto") document.documentElement.dataset.theme = t;
+      })();
+    </script>
   </head>
   <body>
     <header class="topbar">
@@ -14,7 +20,27 @@
         <p class="banner" role="note">SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.</p>
       </div>
       <div class="pill" id="connectionPill">Disconnected</div>
+      <label class="shell-theme">Theme
+        <select id="theme-select">
+          <option value="auto">Auto</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
     </header>
+    <script>
+      (function () {
+        var sel = document.getElementById("theme-select");
+        var saved = localStorage.getItem("mcpdcp.theme") || "auto";
+        sel.value = saved;
+        sel.addEventListener("change", function () {
+          var v = sel.value;
+          if (v === "auto") delete document.documentElement.dataset.theme;
+          else document.documentElement.dataset.theme = v;
+          localStorage.setItem("mcpdcp.theme", v);
+        });
+      })();
+    </script>
 
     <main class="layout">
       <aside class="panel sidebar">
