@@ -24,6 +24,8 @@ jobs:
         run: |
           npm install
           npm test
+      # The vendored shared stylesheet must match the hash pinned when it was last re-vendored.
+      - run: bash scripts/check-ui-standard.sh
 
   gitleaks:
     runs-on: ubuntu-latest
