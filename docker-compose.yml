@@ -1,0 +1,14 @@
+# Local standalone compose. Published loopback-only; joins the shared lab-proxy by its
+# compose network (the proxy resolves mcp-demo-client-privilege-lab-app-1 at request time).
+services:
+  app:
+    build: .
+    image: mcp-demo-client-privilege-lab:local
+    container_name: mcp-demo-client-privilege-lab-app-1
+    environment:
+      PORT: 6884
+      HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:6884:6884"
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]

@@ -7,7 +7,7 @@ import { buildLlmRequest, readLlmReply, llmPath } from './llm.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 const LLM_API_KEY = process.env.LLM_API_KEY || '';
-const HOST = '127.0.0.1';
+const HOST = process.env.HOST || '127.0.0.1';
 const PORT = Number(process.env.PORT) || 6884;
 const STATIC_DIR = path.resolve('public');
 
