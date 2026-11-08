@@ -343,3 +343,20 @@ if (authResult === 'error') {
     reason: authErrorReason ? decodeURIComponent(authErrorReason) : 'Unknown error'
   });
 }
+
+// Shelf button (owner rule 2026-11-08): the header link back to the launcher. Shown only when /api/shelf has a URL.
+fetch('/api/shelf', { credentials: 'omit', headers: { Accept: 'application/json' } })
+  .then((r) => (r.ok ? r.json() : null))
+  .then((d) => {
+    if (!d || !d.shelfUrl) return;
+    const a = document.createElement('a');
+    a.className = 'shelf-link';
+    a.href = d.shelfUrl;
+    a.target = '_blank';
+    a.rel = 'noreferrer';
+    a.title = 'Open the demo shelf (launcher)';
+    a.textContent = 'Shelf';
+    const theme = document.querySelector('.topbar .shell-theme');
+    document.querySelector('.topbar').insertBefore(a, theme);
+  })
+  .catch(() => { /* stay hidden: no shelf, no button */ });
