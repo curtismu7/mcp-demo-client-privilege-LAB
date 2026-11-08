@@ -4,6 +4,7 @@ import http from 'http';
 import path from 'path';
 import { URL } from 'url';
 import { buildLlmRequest, readLlmReply, llmPath } from './llm.js';
+import { shelfInfo } from './shelfLink.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 const LLM_API_KEY = process.env.LLM_API_KEY || '';
@@ -682,6 +683,11 @@ const server = http.createServer(async (req, res) => {
       runtime: process.env.LLM_API_KEY ? 'live' : 'offline',
       demo: { id: 'mcp-demo-client-privilege', name: 'MCP Demo Client for Privilege', version: '1.0.0' }
     }, { 'Cache-Control': 'no-store' });
+    return;
+  }
+
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/shelf') {
+    json(res, 200, shelfInfo(process.env), { 'Cache-Control': 'no-store' });
     return;
   }
 
