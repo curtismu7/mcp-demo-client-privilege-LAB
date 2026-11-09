@@ -9,6 +9,8 @@ services:
       PORT: 6884
       HOST: 0.0.0.0
       SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
+      # The lab-proxy's Host for this lab (on port 6884); writes through it must carry the proxy's own Origin. Loopback always works.
+      LAB_ALLOWED_HOSTS: ${LAB_ALLOWED_HOSTS:-mcp-demo-client.local.ping-devops.com}
     ports:
       - "127.0.0.1:6884:6884"
     restart: unless-stopped
