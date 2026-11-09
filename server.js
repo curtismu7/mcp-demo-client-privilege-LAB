@@ -5,12 +5,15 @@ import path from 'path';
 import { URL } from 'url';
 import { buildLlmRequest, readLlmReply, llmPath } from './llm.js';
 import { shelfInfo } from './shelfLink.js';
+import { hostAllowed, labAllowedHosts, writeAllowed } from './safety.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 const LLM_API_KEY = process.env.LLM_API_KEY || '';
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = Number(process.env.PORT) || 6884;
 const STATIC_DIR = path.resolve('public');
+// The lab-proxy's Host name(s) for this lab (compose sets it); loopback always works.
+const LAB_HOSTS = labAllowedHosts(process.env.LAB_ALLOWED_HOSTS);
 
 const state = {
   config: {
@@ -673,6 +676,15 @@ async function handleDemoChat(req, res) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // First, before any route: a Host outside the set (DNS rebinding) and a cross-origin write are refused (safety.js).
+  if (!hostAllowed(req.headers.host, LAB_HOSTS, PORT)) {
+    json(res, 421, { error: 'bad_host', message: 'this server answers loopback Host headers and its lab-proxy name only' });
+    return;
+  }
+  if (!writeAllowed(req.method, req.headers, LAB_HOSTS, PORT)) {
+    json(res, 403, { error: 'bad_origin', message: 'this server accepts same-origin writes only' });
+    return;
+  }
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
 
   if (req.method === 'GET' && parsedUrl.pathname === '/api/health') {
