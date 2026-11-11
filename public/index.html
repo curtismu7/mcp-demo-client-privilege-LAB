@@ -14,18 +14,19 @@
     </script>
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <h1>MCP Privilege Demo Chat</h1>
-        <p class="banner" role="note">SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.</p>
-      </div>
+    <header class="shell-bar">
+      <span class="shell-brand"><span class="shell-logo">M</span> MCP Privilege Demo Chat</span>
+        <!-- ui-pattern: allow P2 the banner is static in the markup but app.js paints it from /api/info on load and on every Mock/Real switch (it states the current mode at runtime) -->
+      <p class="banner" role="note" id="modeBanner" data-state="mock">
+        SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.
+      </p>
       <div class="pill" id="connectionPill">Disconnected</div>
       <div class="mode-toggle" role="group" aria-label="Mode: Mock or Real">
         <button type="button" id="mode-mock" aria-pressed="true" data-testid="mode-mock">Mock</button>
         <button type="button" id="mode-real" aria-pressed="false" data-testid="mode-real" title="Real routes the model call through the Privilege LLM lane (LLM_API_KEY + a lane URL required).">Real</button>
       </div>
       <label class="shell-theme">Theme
-        <select id="theme-select">
+        <select id="theme-select" aria-label="Theme">
           <option value="auto">Auto</option>
           <option value="light">Light</option>
           <option value="dark">Dark</option>
@@ -57,9 +58,12 @@
           realBtn.disabled = info.realAvailable === false;
           realBtn.title = info.realAvailable === false && info.realReason ? info.realReason : realBtn.title;
           var banner = document.querySelector(".banner");
-          if (banner) banner.textContent = real
-            ? "REAL mode: the model call is routed through the Privilege LLM lane and governed by its policy. The MCP endpoint is still whatever you configure."
-            : "SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.";
+          if (banner) {
+            banner.dataset.state = real ? "live" : "mock";
+            banner.textContent = real
+              ? "REAL mode: the model call is routed through the Privilege LLM lane and governed by its policy. The MCP endpoint is still whatever you configure."
+              : "SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.";
+          }
         }
         fetch("/api/info").then(function (r) { return r.json(); }).then(paint).catch(function () {});
         function choose(wanted) {
@@ -76,7 +80,8 @@
       })();
     </script>
 
-    <main class="layout">
+    <main class="layout frame">
+      <h1 class="visually-hidden">MCP Privilege Demo Chat</h1>
       <aside class="panel sidebar">
         <h2>Connection</h2>
         <label>
@@ -100,36 +105,36 @@
           <input id="llmModel" />
         </label>
         <div class="buttons">
-          <button id="saveConfigBtn">Save</button>
-          <button id="startAuthBtn">Sign In</button>
+          <button id="saveConfigBtn" type="button">Save</button>
+          <button id="startAuthBtn" type="button">Sign In</button>
         </div>
-        <pre id="statusBox"></pre>
+        <pre id="statusBox" aria-label="Status"></pre>
 
         <h2>Available Tools</h2>
-        <pre id="toolsSummary"></pre>
+        <pre id="toolsSummary" aria-label="Available tools"></pre>
         <div class="buttons">
-          <button id="listToolsBtn">Refresh Now</button>
+          <button id="listToolsBtn" type="button">Refresh Now</button>
         </div>
       </aside>
 
       <section class="panel chatPanel">
-        <div id="chatMessages" class="chatMessages"></div>
+        <div id="chatMessages" class="chatMessages" aria-live="polite"></div>
         <div id="chatThinking" class="thinking hidden">Thinking and checking tools...</div>
         <div class="composer">
-          <textarea id="chatPrompt">List available tools from the connected MCP server.</textarea>
-          <button id="sendChatBtn">Send</button>
+          <textarea id="chatPrompt" aria-label="Chat prompt">List available tools from the connected MCP server.</textarea>
+          <button id="sendChatBtn" type="button" class="primary">Send</button>
         </div>
       </section>
 
       <aside class="panel inspector">
         <h2>Live Relay</h2>
-        <pre id="eventLog"></pre>
+        <pre id="eventLog" aria-label="Live relay events"></pre>
 
         <details>
           <summary>Advanced: Raw MCP + Tool Call + Local LLM</summary>
 
           <h3>Raw MCP RPC</h3>
-          <textarea id="rawRpcBox">
+          <textarea id="rawRpcBox" aria-label="Raw MCP RPC JSON">
 {
   "jsonrpc": "2.0",
   "id": 1,
@@ -138,24 +143,24 @@
 }
           </textarea>
           <div class="buttons">
-            <button id="sendRawRpcBtn">Send RPC</button>
+            <button id="sendRawRpcBtn" type="button">Send RPC</button>
           </div>
-          <pre id="rawRpcResult"></pre>
+          <pre id="rawRpcResult" aria-label="Raw RPC result"></pre>
 
           <h3>Direct Tool Call</h3>
-          <select id="toolSelect"></select>
-          <textarea id="toolArgs">{}</textarea>
+          <select id="toolSelect" aria-label="Tool"></select>
+          <textarea id="toolArgs" aria-label="Tool arguments JSON">{}</textarea>
           <div class="buttons">
-            <button id="callToolBtn">Call Tool</button>
+            <button id="callToolBtn" type="button">Call Tool</button>
           </div>
-          <pre id="toolResult"></pre>
+          <pre id="toolResult" aria-label="Tool result"></pre>
 
           <h3>Local LLM (direct)</h3>
-          <textarea id="llmPrompt">Suggest the best tool call for listing applications.</textarea>
+          <textarea id="llmPrompt" aria-label="LLM prompt">Suggest the best tool call for listing applications.</textarea>
           <div class="buttons">
-            <button id="askLlmBtn">Ask LLM</button>
+            <button id="askLlmBtn" type="button">Ask LLM</button>
           </div>
-          <pre id="llmResult"></pre>
+          <pre id="llmResult" aria-label="LLM result"></pre>
         </details>
       </aside>
     </main>
