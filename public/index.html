@@ -20,6 +20,10 @@
         <p class="banner" role="note">SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.</p>
       </div>
       <div class="pill" id="connectionPill">Disconnected</div>
+      <div class="mode-toggle" role="group" aria-label="Mode: Mock or Real">
+        <button type="button" id="mode-mock" aria-pressed="true" data-testid="mode-mock">Mock</button>
+        <button type="button" id="mode-real" aria-pressed="false" data-testid="mode-real" title="Real routes the model call through the Privilege LLM lane (LLM_API_KEY + a lane URL required).">Real</button>
+      </div>
       <label class="shell-theme">Theme
         <select id="theme-select">
           <option value="auto">Auto</option>
@@ -39,6 +43,36 @@
           else document.documentElement.dataset.theme = v;
           localStorage.setItem("mcpdcp.theme", v);
         });
+      })();
+    </script>
+    <script>
+      // Rule 19: Mock/Real switch. The server switches at runtime (POST /api/mode); this only asks.
+      (function () {
+        var mockBtn = document.getElementById("mode-mock");
+        var realBtn = document.getElementById("mode-real");
+        function paint(info) {
+          var real = info.mode === "real";
+          mockBtn.setAttribute("aria-pressed", String(!real));
+          realBtn.setAttribute("aria-pressed", String(real));
+          realBtn.disabled = info.realAvailable === false;
+          realBtn.title = info.realAvailable === false && info.realReason ? info.realReason : realBtn.title;
+          var banner = document.querySelector(".banner");
+          if (banner) banner.textContent = real
+            ? "REAL mode: the model call is routed through the Privilege LLM lane and governed by its policy. The MCP endpoint is still whatever you configure."
+            : "SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.";
+        }
+        fetch("/api/info").then(function (r) { return r.json(); }).then(paint).catch(function () {});
+        function choose(wanted) {
+          fetch("/api/mode", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: wanted }) })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+            .then(function (res) {
+              if (res.ok) return fetch("/api/info").then(function (r) { return r.json(); }).then(paint);
+              alert(res.d.message || res.d.error || "The mode was not changed.");
+            })
+            .catch(function (e) { alert("Could not switch mode: " + e.message); });
+        }
+        mockBtn.addEventListener("click", function () { choose("mock"); });
+        realBtn.addEventListener("click", function () { choose("real"); });
       })();
     </script>
 

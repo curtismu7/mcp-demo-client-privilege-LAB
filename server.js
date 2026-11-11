@@ -35,7 +35,10 @@ const state = {
     sessionId: null
   },
   pendingAuth: null,
-  eventClients: new Set()
+  eventClients: new Set(),
+  // Rule 19 mode: 'mock' sends the LLM call straight to the configured URL (ungoverned),
+  // 'real' routes it through the Privilege LLM lane (LLM_API_KEY + a lane URL required).
+  mode: 'mock'
 };
 
 function nowIso() {
@@ -541,7 +544,7 @@ async function handleLlmChat(req, res) {
     ]);
     json(res, 200, {
       response: readLlmReply(parsed),
-      path: llmPath(state.config.llmUrl)
+      path: state.mode === 'real' ? 'PRIVILEGE (governed lane)' : llmPath(state.config.llmUrl)
     });
   } catch (error) {
     emitEvent('error', { scope: 'llm_chat', message: error.message });
@@ -700,6 +703,43 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && parsedUrl.pathname === '/api/shelf') {
     json(res, 200, shelfInfo(process.env), { 'Cache-Control': 'no-store' });
+    return;
+  }
+
+  // Rule 19 (mode toggle): what the UI asks before offering Real. Real (the governed
+  // Privilege LLM lane) is available only when the virtual key is set and the configured
+  // LLM URL is a lane URL.
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/info') {
+    const realAvailable = Boolean(LLM_API_KEY) && /\/llm\//.test(state.config.llmUrl || '');
+    json(res, 200, {
+      mode: state.mode,
+      source: state.mode === 'real' ? 'real' : 'mock',
+      realAvailable,
+      realReason: realAvailable
+        ? undefined
+        : 'Real needs the Privilege LLM lane: set LLM_API_KEY and point the LLM URL at <gateway>/llm/<provider>.'
+    }, { 'Cache-Control': 'no-store' });
+    return;
+  }
+
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/mode') {
+    const body = await parseBody(req);
+    const wanted = body.source || body.mode;
+    if (wanted !== 'mock' && wanted !== 'real') {
+      json(res, 400, { error: 'the only accepted body is { "source": "mock" | "real" }' });
+      return;
+    }
+    const realAvailable = Boolean(LLM_API_KEY) && /\/llm\//.test(state.config.llmUrl || '');
+    if (wanted === 'real' && !realAvailable) {
+      json(res, 409, {
+        error: 'real_not_available',
+        message: 'Real needs the Privilege LLM lane: set LLM_API_KEY and point the LLM URL at <gateway>/llm/<provider>.'
+      });
+      return;
+    }
+    state.mode = wanted;
+    emitEvent('mode', { mode: state.mode });
+    json(res, 200, { ok: true, mode: state.mode });
     return;
   }
 
