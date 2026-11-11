@@ -140,8 +140,8 @@ function renderStatus(extra = {}) {
   };
   setText(els.statusBox, payload);
   els.connectionPill.textContent = uiState.authenticated ? 'Connected' : 'Not Authenticated';
-  els.connectionPill.style.color = uiState.authenticated ? '#34d399' : '#fca5a5';
-  els.connectionPill.style.borderColor = uiState.authenticated ? '#065f46' : '#7f1d1d';
+  els.connectionPill.classList.toggle('pill-ok', uiState.authenticated);
+  els.connectionPill.classList.toggle('pill-bad', !uiState.authenticated);
 }
 
 async function refreshState() {
