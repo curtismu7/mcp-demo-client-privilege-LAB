@@ -356,7 +356,9 @@ fetch('/api/shelf', { credentials: 'omit', headers: { Accept: 'application/json'
     a.rel = 'noreferrer';
     a.title = 'Open the demo shelf (launcher)';
     a.textContent = 'Shelf';
-    const theme = document.querySelector('.topbar .shell-theme');
-    document.querySelector('.topbar').insertBefore(a, theme);
+    a.className = 'top-menu__shelf top-menu__shelf--accent';
+    a.style.display = 'inline-flex';
+    const existing = document.getElementById('shelf-link');
+    if (existing) existing.replaceWith(a); else { const row = document.querySelector('.top-menu__row'); if (row) row.appendChild(a); }
   })
   .catch(() => { /* stay hidden: no shelf, no button */ });

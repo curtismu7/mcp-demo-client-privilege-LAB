@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MCP Privilege Demo Chat</title>
     <link rel="stylesheet" href="./standalone-ui.css" />
+    <link rel="stylesheet" href="./top-menu.css" />
     <link rel="stylesheet" href="./styles.css" />
     <script>
       (function () {
@@ -21,18 +22,43 @@
         SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.
       </p>
       <div class="pill" id="connectionPill">Disconnected</div>
-      <div class="mode-toggle" role="group" aria-label="Mode: Mock or Real">
-        <button type="button" id="mode-mock" aria-pressed="true" data-testid="mode-mock">Mock</button>
-        <button type="button" id="mode-real" aria-pressed="false" data-testid="mode-real" title="Real routes the model call through the Privilege LLM lane (LLM_API_KEY + a lane URL required).">Real</button>
-      </div>
-      <label class="shell-theme">Theme
-        <select id="theme-select" aria-label="Theme">
-          <option value="auto">Auto</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </label>
+      <nav class="top-menu" data-testid="top-menu" aria-label="Top menu" style="background:var(--box-dark,#16181f);color:var(--on-box,#fcfcfc);padding:.5rem .75rem;border-radius:10px;--ping-red:#d20e0f;--ping-red-deep:#aa0005;">
+        <div class="top-menu__row" style="display:inline-flex;align-items:center;gap:.5rem;">
+          <span class="top-menu__ctl mode-toggle" role="group" aria-label="Mode: Mock or Real">
+            <button type="button" id="mode-mock" aria-pressed="true" data-testid="mode-mock">Mock</button>
+            <button type="button" id="mode-real" aria-pressed="false" data-testid="mode-real" title="Real routes the model call through the Privilege LLM lane (LLM_API_KEY + a lane URL required).">Real</button>
+          </span>
+          <a class="top-menu__shelf top-menu__shelf--accent" id="shelf-link" href="#" target="_blank" rel="noreferrer" style="display:none;">Shelf</a>
+        </div>
+        <div class="top-menu__row" style="display:inline-flex;align-items:center;gap:.5rem;">
+          <span class="top-menu__ctl">Theme
+            <select id="theme-select" aria-label="Theme">
+              <option value="auto">Auto</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </span>
+          <span class="top-menu__ctl">Text size
+            <select id="font-select" aria-label="Font size">
+              <option value="S">S</option><option value="M">M</option><option value="L">L</option>
+            </select>
+            <button type="button" id="font-minus" aria-label="Smaller text">A−</button>
+            <button type="button" id="font-plus" aria-label="Larger text">A+</button>
+          </span>
+        </div>
+      </nav>
     </header>
+    <script>
+      (function () {
+        var STEP={S:"14px",M:"16px",L:"18px"},order=["S","M","L"];
+        function apply(step){document.documentElement.style.fontSize=STEP[step]||"16px";try{localStorage.setItem("mcpdcp.font",step)}catch(e){}var s=document.getElementById("font-select");if(s)s.value=step;}
+        var selF=document.getElementById("font-select");
+        selF.addEventListener("change",function(){apply(selF.value)});
+        document.getElementById("font-minus").addEventListener("click",function(){apply(order[Math.max(0,order.indexOf(selF.value)-1)])});
+        document.getElementById("font-plus").addEventListener("click",function(){apply(order[Math.min(2,order.indexOf(selF.value)+1)])});
+        apply(localStorage.getItem("mcpdcp.font")||"M");
+      })();
+    </script>
     <script>
       (function () {
         var sel = document.getElementById("theme-select");
