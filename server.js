@@ -8,7 +8,9 @@ import { shelfInfo } from './shelfLink.js';
 import { hostAllowed, labAllowedHosts, writeAllowed } from './safety.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
-const LLM_API_KEY = process.env.LLM_API_KEY || '';
+// LLM_API_KEY wins; HOSTED_LLM_VIRTUAL_KEY (the shared settings file's name for the hosted
+// gateway's key) is the fallback, and HOSTED_LLM_GATEWAY_URL gives the matching lane base URL.
+const LLM_API_KEY = process.env.LLM_API_KEY || process.env.HOSTED_LLM_VIRTUAL_KEY || '';
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = Number(process.env.PORT) || 6884;
 const STATIC_DIR = path.resolve('public');
@@ -20,7 +22,8 @@ const state = {
     mcpUrl: 'https://mcp-gateway.example.invalid/mcp',
     clientId: '',
     scopes: 'openid profile email',
-    llmUrl: 'http://127.0.0.1:11434',
+    // The hosted Privilege LLM lane when the shared settings file provides it; local Ollama otherwise.
+    llmUrl: process.env.HOSTED_LLM_GATEWAY_URL ? `${process.env.HOSTED_LLM_GATEWAY_URL.replace(/\/+$/, '')}/llm/custom/v1` : 'http://127.0.0.1:11434',
     llmModel: 'llama3.2:1b'
   },
   oauth: {
