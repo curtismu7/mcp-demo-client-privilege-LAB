@@ -170,3 +170,13 @@ server-side guard after repeated network drops). Note the times from
 `grep "Delete request recieved" /Library/Logs/Procyon/procyon-agent*.log` and raise it with
  whoever administers the Privilege tenant — re-approving treats the symptom; the deletes have
  to stop for it to stay fixed.
+
+---
+
+## Real mode: through the PingOne Privilege gateway
+
+**Privilege objects this lab uses:** the Privilege LLM lane: the chat/model call routed through `<gateway>/llm/<provider>` with a virtual key (`LLM_API_KEY`, or `HOSTED_LLM_*` from the shared file)
+
+Settings keys: `LLM_GW_URL`, `LLM_GW_APPS`, at least one `LLM_GW_KEY_<NAME>`
+in the shared settings file (`~/Development/.env`, or the file `STANDALONE_ENV` names). The key
+is write-only: it is scrubbed from every message, error and log line.
