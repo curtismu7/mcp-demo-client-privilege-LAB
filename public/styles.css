@@ -11,6 +11,10 @@
   --info-accent: #93c5fd;
 }
 
+:root[data-font-step="14px"] { font-size: 14px; }
+:root[data-font-step="16px"] { font-size: 16px; }
+:root[data-font-step="18px"] { font-size: 18px; }
+
 * {
   box-sizing: border-box;
 }
@@ -57,6 +61,13 @@ body {
 .shell-bar .banner {
   flex: 1 1 320px;
   margin: 0;
+}
+
+.top-menu--framed {
+  background: var(--box-dark);
+  color: var(--on-box);
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
 }
 
 .shell-bar h1 {

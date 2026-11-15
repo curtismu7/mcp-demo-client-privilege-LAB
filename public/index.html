@@ -22,7 +22,7 @@
         SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.
       </p>
       <div class="pill" id="connectionPill">Disconnected</div>
-      <nav class="top-menu" data-testid="top-menu" aria-label="Top menu" style="background:var(--box-dark,#16181f);color:var(--on-box,#fcfcfc);padding:.5rem .75rem;border-radius:10px;--ping-red:#d20e0f;--ping-red-deep:#aa0005;">
+      <nav class="top-menu top-menu--framed" data-testid="top-menu" aria-label="Top menu">
         <div class="top-menu__row" style="display:inline-flex;align-items:center;gap:.5rem;">
           <span class="top-menu__ctl mode-toggle" role="group" aria-label="Mode: Mock or Real">
             <button type="button" id="mode-mock" aria-pressed="true" data-testid="mode-mock">Mock</button>
@@ -51,7 +51,7 @@
     <script>
       (function () {
         var STEP={S:"14px",M:"16px",L:"18px"},order=["S","M","L"];
-        function apply(step){document.documentElement.style.fontSize=STEP[step]||"16px";try{localStorage.setItem("mcpdcp.font",step)}catch(e){}var s=document.getElementById("font-select");if(s)s.value=step;}
+        function apply(step){document.documentElement.setAttribute("data-font-step",STEP[step]||"16px");try{localStorage.setItem("mcpdcp.font",step)}catch(e){}var s=document.getElementById("font-select");if(s)s.value=step;}
         var selF=document.getElementById("font-select");
         selF.addEventListener("change",function(){apply(selF.value)});
         document.getElementById("font-minus").addEventListener("click",function(){apply(order[Math.max(0,order.indexOf(selF.value)-1)])});

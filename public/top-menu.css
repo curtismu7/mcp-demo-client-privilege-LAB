@@ -21,7 +21,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   /* Same theme-aware text as the control fill: black on light, white on dark (owner, 2026-11-13). */
-  color: var(--tm-ctl-fg);
+  color: var(--text);
 }
 
 .top-menu button,
@@ -33,9 +33,9 @@
   border-radius: 8px;
   /* Grey fill + strong border so the controls read on any header, light or dark (owner, 2026-11-13).
      Light: light grey fill, near-black border and text. Dark: dark grey fill, white border and text. */
-  background: var(--tm-ctl-bg);
-  color: var(--tm-ctl-fg);
-  border: 1px solid var(--tm-ctl-border);
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--text);
   cursor: pointer;
   text-decoration: none;
   display: inline-flex;
@@ -66,7 +66,7 @@
 .top-menu button:hover,
 .top-menu select:hover,
 .top-menu a.top-menu__shelf:hover {
-  border-color: var(--tm-ctl-fg);
+  border-color: var(--text);
   filter: brightness(1.08);
 }
 
