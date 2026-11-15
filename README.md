@@ -67,7 +67,7 @@ http://127.0.0.1:6884/auth/callback
 
 ## Setup
 
-1. Set **MCP URL** = your Privilege gateway (e.g. `https://mcp-gateway.example.invalid/mcp`)
+1. Set **MCP URL** = your Privilege gateway (e.g. `https://mcp-gateway.example.invalid/mcp/`; the trailing slash matters on gateway v1.261112 and later, and the lab adds it when you leave it off)
 2. Set **OAuth Client ID** = your app's client ID
 3. Click **Sign In**
 4. Ask anything in chat — the LLM picks and explains the right tools
@@ -85,7 +85,7 @@ Falls back to showing all discovered tools if LLM is unavailable.
 
 If protecting `https://api.pingone.com/v1/environments/<envId>/mcp`:
 - Gateway backend → that URL
-- Client MCP URL → `https://<gateway>/mcp`
+- Client MCP URL → `https://<gateway>/mcp/`
 
 ## Files
 

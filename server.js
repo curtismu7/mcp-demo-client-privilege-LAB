@@ -6,6 +6,7 @@ import { URL } from 'url';
 import { buildLlmRequest, readLlmReply, llmPath } from './llm.js';
 import { shelfInfo } from './shelfLink.js';
 import { hostAllowed, labAllowedHosts, writeAllowed } from './safety.js';
+import { gatewayMcpUrl } from './mcpUrl.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 // LLM_API_KEY wins; HOSTED_LLM_VIRTUAL_KEY (the shared settings file's name for the hosted
@@ -19,7 +20,7 @@ const LAB_HOSTS = labAllowedHosts(process.env.LAB_ALLOWED_HOSTS);
 
 const state = {
   config: {
-    mcpUrl: 'https://mcp-gateway.example.invalid/mcp',
+    mcpUrl: 'https://mcp-gateway.example.invalid/mcp/',
     clientId: '',
     scopes: 'openid profile email',
     // The hosted Privilege LLM lane when the shared settings file provides it; local Ollama otherwise.
@@ -777,6 +778,7 @@ const server = http.createServer(async (req, res) => {
         ...state.config,
         ...body
       };
+      state.config.mcpUrl = gatewayMcpUrl(state.config.mcpUrl);
       state.tools = [];
       state.mcpSession.initialized = false;
       state.mcpSession.protocolVersion = null;

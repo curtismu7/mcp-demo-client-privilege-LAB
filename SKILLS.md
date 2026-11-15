@@ -28,7 +28,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:6884
 
 | Field | Value |
 |---|---|
-| MCP URL | Your Privilege gateway, e.g. `https://mcp-gateway.example.invalid/mcp` |
+| MCP URL | Your Privilege gateway, e.g. `https://mcp-gateway.example.invalid/mcp/` (trailing slash; added for you if missing) |
 | OAuth Client ID | Your app's client ID |
 | Scopes | `openid profile email` (default) |
 | LLM URL | `http://127.0.0.1:11434` (optional) |
