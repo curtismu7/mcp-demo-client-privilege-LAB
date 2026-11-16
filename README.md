@@ -112,6 +112,15 @@ A `/llm/...` URL is called OpenAI-compatibly with `Authorization: Bearer $LLM_AP
 `/api/llm/chat` response includes `path` (`PRIVILEGE` or `direct (NOT governed by Privilege)`).
 The key is read from the environment only and is never returned by the config API.
 
+**Groq through Privilege.** The gateway can front Groq through an "OpenAI-Compatible (Custom)"
+connection on the same `/llm/custom/v1` lane (there is no `/llm/groq` route). Set `LLM_API_KEY`
+to the Privilege virtual key bound to the Groq connection. A virtual key is bound to one
+connection, so this is a different key from a llama.cpp custom-lane key even though both use
+`/llm/custom/v1`. Set **LLM model** to a model on that key's allow-list, for example
+`openai/gpt-oss-120b`, `openai/gpt-oss-20b` or `qwen/qwen3.8-27b`; `GET <gateway>/llm/custom/v1/models`
+with the same Bearer lists them. Any other model answers `403 model "<id>" not allowed for this
+key`: the key is fine, the model is not on its allow-list.
+
 ---
 
 ## If the Privilege desktop agent shows "unregistered"
