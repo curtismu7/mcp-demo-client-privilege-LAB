@@ -1,3 +1,8 @@
+import { showJson } from './jsonPane.js';
+
+// Keys that matter in this client's payloads: they stand out in both views of every JSON pane (Rule 24).
+const HOT = ['authenticated', 'warning', 'isError', 'suggested_tools'];
+
 const els = {
   mcpUrl: document.querySelector('#mcpUrl'),
   clientId: document.querySelector('#clientId'),
@@ -39,8 +44,9 @@ const uiState = {
   }
 };
 
-function setText(node, value) {
-  node.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+// Every JSON pane goes through the shared Form | JSON pane (Rule 24); the label is the pane's accessible name.
+function setJson(node, value, label) {
+  showJson(node, value, { label, testId: node.id, hot: HOT });
 }
 
 function truncate(value, max = 240) {
@@ -74,9 +80,9 @@ function appendChat(role, content, extra = null) {
   bubble.className = `bubble ${role}`;
   bubble.textContent = content;
   if (extra) {
-    const meta = document.createElement('pre');
+    const meta = document.createElement('div');
     meta.style.marginTop = '8px';
-    meta.textContent = typeof extra === 'string' ? extra : JSON.stringify(extra, null, 2);
+    showJson(meta, extra, { label: 'Message details', hot: HOT });
     bubble.appendChild(meta);
   }
   els.chatMessages.appendChild(bubble);
@@ -125,10 +131,10 @@ function renderTools(tools) {
     option.textContent = `${tool.name} — ${tool.description || 'No description'}`;
     els.toolSelect.appendChild(option);
   }
-  setText(els.toolsSummary, {
+  setJson(els.toolsSummary, {
     discoveredTools: uiState.tools.length,
     names: uiState.tools.map((t) => t.name)
-  });
+  }, 'Available tools');
 }
 
 function renderStatus(extra = {}) {
@@ -138,7 +144,7 @@ function renderStatus(extra = {}) {
     lastAutoRefresh: uiState.autoRefresh.lastRun,
     ...extra
   };
-  setText(els.statusBox, payload);
+  setJson(els.statusBox, payload, 'Status');
   els.connectionPill.textContent = uiState.authenticated ? 'Connected' : 'Not Authenticated';
   els.connectionPill.classList.toggle('pill-ok', uiState.authenticated);
   els.connectionPill.classList.toggle('pill-bad', !uiState.authenticated);
@@ -289,9 +295,9 @@ els.callToolBtn.addEventListener('click', async () => {
       method: 'POST',
       body: { name: els.toolSelect.value, arguments: args }
     });
-    setText(els.toolResult, data);
+    setJson(els.toolResult, data, 'Tool result');
   } catch (error) {
-    setText(els.toolResult, { error: error.message });
+    setJson(els.toolResult, { error: error.message }, 'Tool result');
   }
 });
 
@@ -299,9 +305,9 @@ els.sendRawRpcBtn.addEventListener('click', async () => {
   try {
     const rpc = JSON.parse(els.rawRpcBox.value);
     const data = await api('/api/mcp/rpc', { method: 'POST', body: rpc });
-    setText(els.rawRpcResult, data);
+    setJson(els.rawRpcResult, data, 'Raw RPC result');
   } catch (error) {
-    setText(els.rawRpcResult, { error: error.message });
+    setJson(els.rawRpcResult, { error: error.message }, 'Raw RPC result');
   }
 });
 
@@ -312,9 +318,9 @@ els.askLlmBtn.addEventListener('click', async () => {
       method: 'POST',
       body: { message: els.llmPrompt.value }
     });
-    setText(els.llmResult, data.response);
+    setJson(els.llmResult, data.response, 'LLM result');
   } catch (error) {
-    setText(els.llmResult, { error: error.message });
+    setJson(els.llmResult, { error: error.message }, 'LLM result');
   }
 });
 
