@@ -13,7 +13,7 @@ services:
       LAB_ALLOWED_HOSTS: ${LAB_ALLOWED_HOSTS:-mcp-demo-client.local.ping-devops.com}
     # Optional shared settings file (HOSTED_LLM_* for the Privilege LLM lane). Ignored when absent.
     env_file:
-      - path: ${STANDALONE_ENV:-../.env}
+      - path: ${STANDALONE_ENV:-${HOME}/Development/.env}
         required: false
     ports:
       - "127.0.0.1:6884:6884"
