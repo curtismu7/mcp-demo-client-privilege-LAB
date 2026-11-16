@@ -124,6 +124,12 @@ button.primary:disabled {
   overflow: hidden;
 }
 
+/* The side columns scroll as page regions, so full-view JSON panes (Rule 24) are never clipped by the fixed-height layout. */
+.sidebar,
+.inspector {
+  overflow-y: auto;
+}
+
 h2 {
   margin: 0 0 8px;
   font-size: 16px;
@@ -187,16 +193,10 @@ pre {
   line-height: 1.4;
 }
 
-#statusBox {
-  min-height: 92px;
-  max-height: 200px;
-  overflow: auto;
-}
-
-#toolsSummary {
-  min-height: 120px;
-  max-height: 240px;
-  overflow: auto;
+/* JSON panes (Rule 24) are full view: no max-height, no overflow scroll; they grow to their content.
+   The page-wide `button { width: 100% }` must not stretch the pane's Form | JSON toggle. */
+.jsonbox__toggle button {
+  width: auto;
 }
 
 .chatPanel {

@@ -6,6 +6,7 @@
     <title>MCP Privilege Demo Chat</title>
     <link rel="stylesheet" href="./standalone-ui.css" />
     <link rel="stylesheet" href="./top-menu.css" />
+    <link rel="stylesheet" href="./json/JsonPane.css" />
     <link rel="stylesheet" href="./styles.css" />
     <script>
       (function () {
@@ -134,10 +135,10 @@
           <button id="saveConfigBtn" type="button">Save</button>
           <button id="startAuthBtn" type="button">Sign In</button>
         </div>
-        <pre id="statusBox" aria-label="Status"></pre>
+        <div id="statusBox"></div>
 
         <h2>Available Tools</h2>
-        <pre id="toolsSummary" aria-label="Available tools"></pre>
+        <div id="toolsSummary"></div>
         <div class="buttons">
           <button id="listToolsBtn" type="button">Refresh Now</button>
         </div>
@@ -171,7 +172,7 @@
           <div class="buttons">
             <button id="sendRawRpcBtn" type="button">Send RPC</button>
           </div>
-          <pre id="rawRpcResult" aria-label="Raw RPC result"></pre>
+          <div id="rawRpcResult"></div>
 
           <h3>Direct Tool Call</h3>
           <select id="toolSelect" aria-label="Tool"></select>
@@ -179,14 +180,14 @@
           <div class="buttons">
             <button id="callToolBtn" type="button">Call Tool</button>
           </div>
-          <pre id="toolResult" aria-label="Tool result"></pre>
+          <div id="toolResult"></div>
 
           <h3>Local LLM (direct)</h3>
           <textarea id="llmPrompt" aria-label="LLM prompt">Suggest the best tool call for listing applications.</textarea>
           <div class="buttons">
             <button id="askLlmBtn" type="button">Ask LLM</button>
           </div>
-          <pre id="llmResult" aria-label="LLM result"></pre>
+          <div id="llmResult"></div>
         </details>
       </aside>
     </main>
