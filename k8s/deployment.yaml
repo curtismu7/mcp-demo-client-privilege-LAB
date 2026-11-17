@@ -1,0 +1,52 @@
+# Hosted build of the MCP Demo Client for Privilege for the SE cluster. Same image as the local
+# standalone; it holds no secrets and keeps no visitor data beyond the in-process config state.
+# Placeholders (__IMAGE__, __SE_HOST__, __NAME__) are filled by k8s/deploy.sh. No namespace: deploy.sh takes NAMESPACE.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: __NAME__
+  labels: { app: __NAME__ }
+spec:
+  # ONE pod on purpose: the configured MCP URL, OAuth tokens and discovered tools live in this
+  # process's memory, so a second replica would give a visitor a different connection. Do not
+  # scale this without moving the connection state out of process.
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: __NAME__ }
+  template:
+    metadata:
+      labels: { app: __NAME__ }
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 6884 }
+          env:
+            - { name: PORT, value: "6884" }
+            - { name: HOST, value: 0.0.0.0 }
+            # The browser's Origin must match the Host the app sees, so the ingress passes the real host through and the app names it here.
+            - { name: LAB_ALLOWED_HOSTS, value: "__SE_HOST__" }
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { cpu: 300m, memory: 192Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
