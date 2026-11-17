@@ -85,7 +85,9 @@ test('server: launcher and loopback writes reach the route; foreign Origin 403; 
     assert.equal(await send(port, 'POST', '/api/config', { ...lab, origin: 'https://evil.example' }, {}), 403);
     assert.equal(await send(port, 'POST', '/api/config', { ...loop, origin: 'https://evil.example' }, {}), 403);
     assert.equal(await send(port, 'POST', '/api/config', { ...loop, 'x-forwarded-host': PROXY, 'x-forwarded-proto': 'https', origin: `https://${PROXY}` }, {}), 403);
-    assert.equal(await send(port, 'GET', '/api/health', { host: `evil.example:${port}` }), 421);
+    // Health is public (cluster probes use a pod-IP Host), so a bad Host still gets 200 there; anything else is 421.
+    assert.equal(await send(port, 'GET', '/api/health', { host: `evil.example:${port}` }), 200);
+    assert.equal(await send(port, 'GET', '/api/shelf', { host: `evil.example:${port}` }), 421);
     assert.equal(await send(port, 'POST', '/api/config', { host: `evil.example:${port}`, origin: `http://evil.example:${port}` }, {}), 421);
   } finally {
     child.kill();

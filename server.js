@@ -787,16 +787,9 @@ async function handleDemoChat(req, res) {
 
 const server = http.createServer(async (req, res) => {
   // First, before any route: a Host outside the set (DNS rebinding) and a cross-origin write are refused (safety.js).
-  if (!hostAllowed(req.headers.host, LAB_HOSTS, PORT)) {
-    json(res, 421, { error: 'bad_host', message: 'this server answers loopback Host headers and its lab-proxy name only' });
-    return;
-  }
-  if (!writeAllowed(req.method, req.headers, LAB_HOSTS, PORT)) {
-    json(res, 403, { error: 'bad_origin', message: 'this server accepts same-origin writes only' });
-    return;
-  }
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
 
+  // Health is public and read-only. Cluster probes call it with a pod-IP Host, so it sits before the host check.
   if (req.method === 'GET' && parsedUrl.pathname === '/api/health') {
     json(res, 200, {
       schema: 'demo-health/1',
@@ -805,6 +798,15 @@ const server = http.createServer(async (req, res) => {
       runtime: process.env.LLM_API_KEY ? 'live' : 'offline',
       demo: { id: 'mcp-demo-client-privilege', name: 'MCP Demo Client for Privilege', version: '1.0.0' }
     }, { 'Cache-Control': 'no-store' });
+    return;
+  }
+
+  if (!hostAllowed(req.headers.host, LAB_HOSTS, PORT)) {
+    json(res, 421, { error: 'bad_host', message: 'this server answers loopback Host headers and its lab-proxy name only' });
+    return;
+  }
+  if (!writeAllowed(req.method, req.headers, LAB_HOSTS, PORT)) {
+    json(res, 403, { error: 'bad_origin', message: 'this server accepts same-origin writes only' });
     return;
   }
 
