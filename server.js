@@ -5,7 +5,7 @@ import path from 'path';
 import { URL } from 'url';
 import { buildLlmRequest, readLlmReply, llmPath } from './llm.js';
 import { shelfInfo } from './shelfLink.js';
-import { hostAllowed, labAllowedHosts, writeAllowed } from './safety.js';
+import { hostAllowed, isLoopbackName, labAllowedHosts, parseHost, writeAllowed } from './safety.js';
 import { gatewayMcpUrl } from './mcpUrl.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
@@ -423,7 +423,12 @@ async function discoverAuth() {
 
 async function handleStartAuth(req, res) {
   try {
-    const redirectUri = `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST}:${PORT}/auth/callback`;
+    // Behind an ingress or the lab-proxy, the browser's own address is the right redirect (https on the
+    // lab Host); the loopback build registers its own local address.
+    const incoming = parseHost(req.headers.host);
+    const redirectUri = incoming && !isLoopbackName(incoming.name) && incoming.name === [...LAB_HOSTS][0]
+      ? `https://${incoming.name}/auth/callback`
+      : `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST}:${PORT}/auth/callback`;
     const { authorizationUri, tokenUri, registrationUri, scopes } = await discoverAuth();
     // No client id set? Register one with the server's RFC 7591 endpoint when it offers one
     // (the SkyHigh Airline Connector does; PingOne hosted MCP does not, so the manual id stays).
@@ -698,7 +703,12 @@ async function handleDemoChat(req, res) {
       const verifier = randomString(48);
       const challenge = sha256Base64Url(verifier);
       const oauthState = randomString(24);
-      const redirectUri = `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST}:${PORT}/auth/callback`;
+      // Behind an ingress or the lab-proxy, the browser's own address is the right redirect (https on the
+    // lab Host); the loopback build registers its own local address.
+    const incoming = parseHost(req.headers.host);
+    const redirectUri = incoming && !isLoopbackName(incoming.name) && incoming.name === [...LAB_HOSTS][0]
+      ? `https://${incoming.name}/auth/callback`
+      : `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST}:${PORT}/auth/callback`;
       const effectiveScopes = scopes?.length ? scopes.join(' ') : state.config.scopes;
       const authUrl = new URL(authorizationUri);
       authUrl.searchParams.set('client_id', state.config.clientId);
