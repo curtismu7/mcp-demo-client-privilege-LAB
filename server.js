@@ -296,6 +296,65 @@ async function ensureMcpSessionInitialized() {
   });
 }
 
+// RFC 9728: from a 401's WWW-Authenticate resource_metadata URL (or the well-known
+// path derived from the MCP URL), read the protected-resource document, then the
+// authorization-server metadata. Returns { authorizationUri, tokenUri, registrationUri }.
+async function discoverResourceMetadata(response, mcpUrl) {
+  const authHeader = response.headers.get('www-authenticate') || '';
+  const rmMatch = authHeader.match(/resource_metadata="([^"]+)"/);
+  let rmUrl = rmMatch ? rmMatch[1] : null;
+  if (!rmUrl) {
+    // The MCP URL may carry a path prefix (e.g. https://host:8443/<lab>/mcp behind a
+    // routing proxy); the resource document sits at <origin>/<prefix>/.well-known/...
+    // with the prefix kept ahead of the well-known segment.
+    const u = new URL(mcpUrl);
+    const parts = u.pathname.split('/').filter(Boolean);
+    const prefix = parts.slice(0, -1).join('/');
+    rmUrl = prefix
+      ? `${u.origin}/${prefix}/.well-known/oauth-protected-resource/${parts.at(-1)}`
+      : `${u.origin}/.well-known/oauth-protected-resource${u.pathname}`;
+  }
+  const rmResponse = await fetch(rmUrl, { method: 'GET' });
+  if (!rmResponse.ok) return null;
+  const rm = await rmResponse.json();
+  const asUrl = Array.isArray(rm.authorization_servers) && rm.authorization_servers.length
+    ? rm.authorization_servers[0]
+    : null;
+  if (!asUrl) return null;
+  const asResponse = await fetch(`${asUrl}/.well-known/oauth-authorization-server`, { method: 'GET' });
+  if (!asResponse.ok) return null;
+  const asMeta = await asResponse.json();
+  if (!asMeta.authorization_endpoint || !asMeta.token_endpoint) return null;
+  return {
+    authorizationUri: asMeta.authorization_endpoint,
+    tokenUri: asMeta.token_endpoint,
+    registrationUri: asMeta.registration_endpoint || null,
+    scopes: Array.isArray(rm.scopes_supported) ? rm.scopes_supported : null
+  };
+}
+
+// RFC 7591 dynamic client registration. The redirect URI is this app's own /auth/callback.
+async function dynamicallyRegister(registrationUri, redirectUri) {
+  const response = await fetch(registrationUri, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_name: 'MCP Demo Client for Privilege',
+      redirect_uris: [redirectUri],
+      token_endpoint_auth_method: 'none',
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code']
+    })
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Dynamic client registration failed: ${response.status} ${text.slice(0, 200)}`);
+  }
+  const registered = await response.json();
+  if (!registered.client_id) throw new Error('Dynamic client registration returned no client_id.');
+  return registered;
+}
+
 async function discoverAuth() {
   const response = await fetch(state.config.mcpUrl, { method: 'GET' });
   const bodyText = await response.text();
@@ -314,6 +373,23 @@ async function discoverAuth() {
 
   if (authorizationUri && tokenUri) {
     return { authorizationUri, tokenUri };
+  }
+
+  // RFC 9728 resource-metadata discovery: from the 401's WWW-Authenticate when present,
+  // otherwise straight from the well-known paths derived from the MCP URL (some servers
+  // answer a GET on the MCP endpoint with a bare 405 instead of a discovery-capable 401).
+  try {
+    let viaResource = null;
+    if (response.status === 401 || response.headers.get('www-authenticate')) {
+      viaResource = await discoverResourceMetadata(response, state.config.mcpUrl);
+    }
+    if (!viaResource) {
+      const probe = { headers: response.headers, status: 401 };
+      viaResource = await discoverResourceMetadata(probe, state.config.mcpUrl);
+    }
+    if (viaResource) return viaResource;
+  } catch {
+    // Fall through to the PingOne hosted pattern below.
   }
 
   // PingOne hosted remote MCP currently responds with plain 401 JSON
@@ -347,21 +423,33 @@ async function discoverAuth() {
 
 async function handleStartAuth(req, res) {
   try {
+    const redirectUri = `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST}:${PORT}/auth/callback`;
+    const { authorizationUri, tokenUri, registrationUri, scopes } = await discoverAuth();
+    // No client id set? Register one with the server's RFC 7591 endpoint when it offers one
+    // (the SkyHigh Airline Connector does; PingOne hosted MCP does not, so the manual id stays).
     if (!state.config.clientId) {
-      json(res, 400, { error: 'Client ID is required before auth start.' });
-      return;
+      if (!registrationUri) {
+        json(res, 400, { error: 'Client ID is required before auth start (the server offers no dynamic registration).' });
+        return;
+      }
+      const registered = await dynamicallyRegister(registrationUri, redirectUri);
+      state.config.clientId = registered.client_id;
+      if (Array.isArray(registered.redirect_uris) && registered.redirect_uris[0]) {
+        state.config.registeredRedirectUri = registered.redirect_uris[0];
+      }
+      emitEvent('oauth', { phase: 'dcr', clientId: registered.client_id, clientName: registered.client_name || null });
     }
-    const { authorizationUri, tokenUri } = await discoverAuth();
     const verifier = randomString(48);
     const challenge = sha256Base64Url(verifier);
     const oauthState = randomString(24);
-    const redirectUri = `http://${HOST}:${PORT}/auth/callback`;
     const authUrl = new URL(authorizationUri);
     authUrl.searchParams.set('client_id', state.config.clientId);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('code_challenge', challenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
-    authUrl.searchParams.set('scope', state.config.scopes);
+    // The resource document's scopes win when it names them (the connector wants mcp, not openid profile email).
+    const effectiveScopes = scopes?.length ? scopes.join(' ') : state.config.scopes;
+    authUrl.searchParams.set('scope', effectiveScopes);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('state', oauthState);
 
@@ -369,7 +457,8 @@ async function handleStartAuth(req, res) {
       oauthState,
       verifier,
       tokenUri,
-      redirectUri
+      redirectUri,
+      scope: effectiveScopes
     };
 
     emitEvent('oauth', {
@@ -379,7 +468,7 @@ async function handleStartAuth(req, res) {
       authUrl: authUrl.toString()
     });
 
-    json(res, 200, { authUrl: authUrl.toString() });
+    json(res, 200, { authUrl: authUrl.toString(), clientId: state.config.clientId, scope: effectiveScopes });
   } catch (error) {
     emitEvent('error', { scope: 'oauth_start', message: error.message });
     json(res, 500, { error: error.message });
@@ -417,6 +506,7 @@ async function handleAuthCallback(req, res, parsedUrl) {
       client_id: state.config.clientId,
       code_verifier: state.pendingAuth.verifier
     });
+    if (state.pendingAuth.scope) tokenBody.set('scope', state.pendingAuth.scope);
 
     const tokenResponse = await fetch(state.pendingAuth.tokenUri, {
       method: 'POST',
@@ -592,21 +682,34 @@ async function handleDemoChat(req, res) {
     }
 
     if (!state.oauth.accessToken) {
-      const { authorizationUri, tokenUri } = await discoverAuth();
+      const { authorizationUri, tokenUri, registrationUri, scopes } = await discoverAuth();
+      if (!state.config.clientId) {
+        if (!registrationUri) {
+          json(res, 200, {
+            reply: 'I can connect, but OAuth Client ID is missing and the server offers no dynamic registration. Set Client ID and try again.',
+            steps: [...steps, 'missing_client_id']
+          });
+          return;
+        }
+        const registered = await dynamicallyRegister(registrationUri, `http://127.0.0.1:${PORT}/auth/callback`);
+        state.config.clientId = registered.client_id;
+        emitEvent('oauth', { phase: 'dcr', clientId: registered.client_id, clientName: registered.client_name || null });
+      }
       const verifier = randomString(48);
       const challenge = sha256Base64Url(verifier);
       const oauthState = randomString(24);
-      const redirectUri = `http://${HOST}:${PORT}/auth/callback`;
+      const redirectUri = `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST}:${PORT}/auth/callback`;
+      const effectiveScopes = scopes?.length ? scopes.join(' ') : state.config.scopes;
       const authUrl = new URL(authorizationUri);
       authUrl.searchParams.set('client_id', state.config.clientId);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('code_challenge', challenge);
       authUrl.searchParams.set('code_challenge_method', 'S256');
-      authUrl.searchParams.set('scope', state.config.scopes);
+      authUrl.searchParams.set('scope', effectiveScopes);
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('state', oauthState);
 
-      state.pendingAuth = { oauthState, verifier, tokenUri, redirectUri };
+      state.pendingAuth = { oauthState, verifier, tokenUri, redirectUri, scope: effectiveScopes };
       json(res, 200, {
         reply: 'Please complete OAuth login first. I prepared the auth URL.',
         authUrl: authUrl.toString(),

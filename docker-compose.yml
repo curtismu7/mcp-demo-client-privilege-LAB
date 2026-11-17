@@ -11,11 +11,21 @@ services:
       SHELF_URL: ${SHELF_URL:-http://127.0.0.1:4400}
       # The lab-proxy's Host for this lab (on port 6884); writes through it must carry the proxy's own Origin. Loopback always works.
       LAB_ALLOWED_HOSTS: ${LAB_ALLOWED_HOSTS:-mcp-demo-client.local.ping-devops.com}
+      # Trust the family dev CA so the app can do OAuth with labs behind the shared
+      # lab-proxy (https://local.ping-devops.com:8443, mkcert-signed).
+      NODE_EXTRA_CA_CERTS: /certs/ca.pem
     # Optional shared settings file (HOSTED_LLM_* for the Privilege LLM lane). Ignored when absent.
     env_file:
       - path: ${STANDALONE_ENV:-${HOME}/Development/.env}
         required: false
     ports:
       - "127.0.0.1:6884:6884"
+    # The app can be pointed at another lab's MCP URL through the family lab-proxy
+    # (https://local.ping-devops.com:8443/<lab>/mcp); map that name to the host,
+    # where the proxy publishes, so the container can do OAuth against it.
+    extra_hosts:
+      - "local.ping-devops.com:host-gateway"
+    volumes:
+      - ${HOME}/Development/AI-DEMO2/certs/ca-bundle-with-mkcert.pem:/certs/ca.pem:ro
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
