@@ -11,6 +11,7 @@ const els = {
   llmModel: document.querySelector('#llmModel'),
   saveConfigBtn: document.querySelector('#saveConfigBtn'),
   startAuthBtn: document.querySelector('#startAuthBtn'),
+  restartBtn: document.querySelector('#restartBtn'),
   listToolsBtn: document.querySelector('#listToolsBtn'),
   statusBox: document.querySelector('#statusBox'),
   connectionPill: document.querySelector('#connectionPill'),
@@ -270,6 +271,20 @@ els.startAuthBtn.addEventListener('click', async () => {
     appendChat('system', 'OAuth started. Complete login in the opened tab.');
   } catch (error) {
     appendChat('system', `OAuth start failed: ${error.message}`);
+  }
+});
+
+// Restart: clear every message pane and start a fresh MCP session. Sign-in and settings are kept.
+els.restartBtn.addEventListener('click', async () => {
+  els.chatMessages.textContent = '';
+  els.eventLog.textContent = '';
+  for (const pane of [els.rawRpcResult, els.toolResult, els.llmResult]) pane.textContent = '';
+  try {
+    // An empty config update resets the server-side MCP session (initialize runs again) and keeps oauth.
+    await api('/api/config', { method: 'POST', body: {} });
+    appendChat('system', 'Restarted: messages cleared, new MCP session. Sign-in and settings kept.');
+  } catch (error) {
+    appendChat('system', `Restart failed: ${error.message}`);
   }
 });
 
