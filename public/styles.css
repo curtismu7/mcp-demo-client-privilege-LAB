@@ -33,7 +33,7 @@
 
 /* P3: the centred max-width content frame the standard asks for. */
 .frame {
-  max-width: 1100px;
+  max-width: 2200px;
   margin: 0 auto;
 }
 
