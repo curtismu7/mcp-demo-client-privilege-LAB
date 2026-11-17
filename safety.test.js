@@ -16,9 +16,9 @@ test('LAB_ALLOWED_HOSTS keeps bare DNS names only', () => {
   assert.deepEqual([...names], [LAB]);
 });
 
-test('Host check: loopback on any port, the lab name only on this port, nothing else', () => {
-  for (const h of ['localhost', '127.0.0.1:1', '[::1]:6884', 'LOCALHOST:6884', `${LAB}:6884`]) assert.ok(hostAllowed(h, names, 6884), h);
-  for (const h of [`${LAB}:6885`, LAB, 'evil.example:6884', `x.${LAB}:6884`, 'front.example:6884', '', undefined, 'a b', '127.0.0.1.evil.example']) {
+test('Host check: loopback on any port, the lab name on this port or bare (an ingress passes the host through without a port), nothing else', () => {
+  for (const h of ['localhost', '127.0.0.1:1', '[::1]:6884', 'LOCALHOST:6884', `${LAB}:6884`, LAB]) assert.ok(hostAllowed(h, names, 6884), h);
+  for (const h of [`${LAB}:6885`, 'evil.example:6884', `x.${LAB}:6884`, 'front.example:6884', '', undefined, 'a b', '127.0.0.1.evil.example']) {
     assert.ok(!hostAllowed(h, names, 6884), String(h));
   }
 });

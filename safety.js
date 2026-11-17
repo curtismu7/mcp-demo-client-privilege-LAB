@@ -19,6 +19,8 @@ export function isLoopbackName(name) {
 export const labAllowedHosts = (raw) => new Set(String(raw ?? '').split(',').map((h) => h.trim().toLowerCase()).filter((h) => /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(h)));
 
 // "name" or "name:port"; IPv6 only as [::1]. Anything else -> null.
+// A lab Host with no port counts too: an ingress that passes the host through sends the
+// Host header bare (the browser's 443 is implicit), unlike the local lab-proxy which keeps :port.
 const HOST_RE = /^(\[::1\]|[a-z0-9.-]+)(?::(\d{1,5}))?$/i;
 export function parseHost(hostHeader) {
   const m = HOST_RE.exec(String(hostHeader ?? '').trim());
@@ -28,7 +30,7 @@ export function parseHost(hostHeader) {
   return { name: m[1].toLowerCase(), port, host: String(hostHeader).trim().toLowerCase() };
 }
 
-const isLabHost = (h, names, port) => h !== null && !isLoopbackName(h.name) && names.has(h.name) && h.port === Number(port);
+const isLabHost = (h, names, port) => h !== null && !isLoopbackName(h.name) && names.has(h.name) && (h.port === null || h.port === Number(port));
 
 export function hostAllowed(hostHeader, names, port) {
   const h = parseHost(hostHeader);
