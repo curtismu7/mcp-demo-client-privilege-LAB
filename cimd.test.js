@@ -282,3 +282,18 @@ test('a gateway that does NOT refuse is reported as not refused', async () => {
     stub.server.close();
   }
 });
+
+test('the banner says only the chat model is simulated, and the header has no stray logo letter', async () => {
+  await withApp('', async (port) => {
+    const html = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port, path: '/', headers: { host: `127.0.0.1:${port}` } }, (res) => {
+        let t = ''; res.on('data', (d) => { t += d; }); res.on('end', () => resolve(t));
+      }).on('error', reject);
+    });
+    assert.ok(!html.includes('SIMULATED, MOCK'), 'the old banner wording must be gone');
+    assert.equal((html.match(/MOCK mode: only the chat model is simulated/g) || []).length, 2, 'static markup and the script text');
+    assert.match(html, /REAL mode: the chat model call/);
+    assert.ok(!html.includes('shell-logo'));
+    assert.match(html, /<span class="shell-brand">MCP Privilege Demo Chat<\/span>/);
+  });
+});
