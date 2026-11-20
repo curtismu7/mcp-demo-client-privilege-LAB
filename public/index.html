@@ -110,6 +110,48 @@
       })();
     </script>
 
+    <section class="walk frame" aria-labelledby="walkTitle">
+      <p class="section-label" id="walkTitle">CIMD walkthrough: sign in with a document URL, in six steps</p>
+      <ol class="walk-steps">
+        <li class="walk-step" id="walk-1">
+          <span class="walk-n" aria-hidden="true">1</span>
+          <h2>The client's document</h2>
+          <p class="walk-lead">Instead of registering, this app publishes a small JSON file. The address of the file is its client ID.</p>
+          <div class="walk-body" id="walk1Body"></div>
+        </li>
+        <li class="walk-step" id="walk-2">
+          <span class="walk-n" aria-hidden="true">2</span>
+          <h2>Point it at a gateway</h2>
+          <p class="walk-lead">Give it the MCP address of a gateway door. Leave the OAuth Client ID empty, so the client uses its own document.</p>
+          <div class="walk-body" id="walk2Body"></div>
+        </li>
+        <li class="walk-step" id="walk-3">
+          <span class="walk-n" aria-hidden="true">3</span>
+          <h2>Sign in</h2>
+          <p class="walk-lead">The client asks the door how to sign in. If the door accepts document URLs, the client uses its own. You sign in here, in this tab.</p>
+          <div class="walk-body" id="walk3Body"></div>
+        </li>
+        <li class="walk-step" id="walk-4">
+          <span class="walk-n" aria-hidden="true">4</span>
+          <h2>What the gateway did</h2>
+          <p class="walk-lead">As far as the client can tell, in order.</p>
+          <div class="walk-body" id="walk4Body"></div>
+        </li>
+        <li class="walk-step" id="walk-5">
+          <span class="walk-n" aria-hidden="true">5</span>
+          <h2>Token and tools</h2>
+          <p class="walk-lead">With a token the client can call the MCP server behind the door.</p>
+          <div class="walk-body" id="walk5Body"></div>
+        </li>
+        <li class="walk-step" id="walk-6">
+          <span class="walk-n" aria-hidden="true">6</span>
+          <h2>What the gateway refuses</h2>
+          <p class="walk-lead">Two requests that must fail: a wrong return address, and a document the admin has not listed.</p>
+          <div class="walk-body" id="walk6Body"></div>
+        </li>
+      </ol>
+    </section>
+
     <main class="layout frame">
       <h1 class="visually-hidden">MCP Privilege Demo Chat</h1>
       <aside class="panel sidebar">

@@ -100,11 +100,20 @@ With a Privilege gateway, an admin must list that document URL under Settings, M
 
 Set `SETUP_GUIDE_URL` (an https address) to show a **Setup guide** link in the top menu; unset, there is no link.
 
+**CIMD walkthrough.** The top of the page is one numbered walkthrough in six steps: the client's own document, pointing at a
+gateway, signing in (in the same tab, so you come back to this page), what the gateway did, the token and tools, and what
+the gateway refuses. It reads `/api/state` (which now says how the client identified itself, and the document URL), the
+document at `/client.json`, and one probe, `POST /api/cimd/refusals`, which sends two requests that must fail (a wrong
+return address, and a document that is not on the list) to the configured gateway's authorize endpoint and shows its
+answers. The probe never signs in and does not follow redirects. The step 3 button signs in in this tab; the Sign In button
+in the Connection panel still opens a new tab.
+
 ## Files
 
 | File | Purpose |
 |---|---|
 | `server.js` | OAuth, MCP relay, chat, LLM routing |
+| `public/walkthrough.js` | The numbered CIMD walkthrough at the top of the page |
 | `cimd.js` | The client's CIMD document and the "does this server accept one" test |
 | `public/index.html` | UI layout |
 | `public/app.js` | Chat, auto-refresh, tool rendering |

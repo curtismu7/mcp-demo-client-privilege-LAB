@@ -48,7 +48,7 @@ const freePort = () => new Promise((resolve, reject) => {
 });
 
 // Stub: a 401 MCP endpoint, resource metadata, AS metadata (CIMD flag on or off) and a /register counter.
-function stubAs(cimd) {
+function stubAs(cimd, { acceptAll = false } = {}) {
   const calls = { register: 0 };
   const server = http.createServer((req, res) => {
     const base = `http://127.0.0.1:${server.address().port}`;
@@ -66,6 +66,13 @@ function stubAs(cimd) {
         token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
         ...(cimd ? { client_id_metadata_document_supported: true } : {})
       });
+    }
+    if (req.url.startsWith('/as/authorize')) {
+      const q = new URL(req.url, base).searchParams;
+      if (acceptAll) { res.writeHead(302, { location: 'https://signin.example/' }); return res.end(); }
+      if (String(q.get('redirect_uri')).includes('evil')) { res.writeHead(400, { 'content-type': 'text/html' }); return res.end('<style>.x{color:red}</style><h1>redirect_uri is not registered for this client</h1>'); }
+      if (String(q.get('client_id')).includes('example.com')) { res.writeHead(400, { 'content-type': 'text/plain' }); return res.end('This client is not approved for use here. The document is not listed for this tenant.'); }
+      res.writeHead(302, { location: 'https://signin.example/' }); return res.end();
     }
     if (req.url === '/as/register' && req.method === 'POST') {
       calls.register += 1;
@@ -210,4 +217,68 @@ test('the page has a hidden Setup guide link that is shown only from /api/info',
     assert.match(html, /id="guide-link"[^>]*style="display:none;"[^>]*>Setup guide</);
     assert.match(html, /info\.setupGuideUrl/);
   });
+});
+
+test('/api/state tells the walkthrough how the client identified itself, and the document URL', async () => {
+  const stub = await stubAs(true);
+  try {
+    await withApp(LAB, async (port) => {
+      assert.equal((await (await call(port, 'GET', '/api/state', undefined, true)).json()).walk.identity, null);
+      await call(port, 'POST', '/api/config', { mcpUrl: `${stub.base}/door/mcp`, clientId: '' }, true);
+      await call(port, 'POST', '/api/auth/start', undefined, true);
+      const state = await (await call(port, 'GET', '/api/state', undefined, true)).json();
+      assert.deepEqual(state.walk, { discovered: true, serverCimd: true, identity: 'cimd', redirectUri: 'https://lab.example/auth/callback' });
+      assert.equal(state.cimdDocumentUrl, 'https://lab.example/client.json');
+    });
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('the refusal probes ask the door and report what it says; no document means 409', async () => {
+  const stub = await stubAs(true);
+  try {
+    await withApp(LAB, async (port) => {
+      await call(port, 'POST', '/api/config', { mcpUrl: `${stub.base}/door/mcp`, clientId: '' }, true);
+      const res = await call(port, 'POST', '/api/cimd/refusals', undefined, true);
+      assert.equal(res.status, 200);
+      const { results } = await res.json();
+      assert.deepEqual(results.map((r) => [r.id, r.status, r.refused]), [['wrong-redirect', 400, true], ['not-listed', 400, true]]);
+      assert.match(results[0].message, /redirect_uri is not registered/);
+      assert.ok(!/color:red/.test(results[0].message), 'style contents must not leak into the message');
+      assert.match(results[1].message, /not listed/);
+    });
+    await withApp('', async (port) => {
+      assert.equal((await call(port, 'POST', '/api/cimd/refusals')).status, 409);
+    });
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('the page has the six numbered walkthrough steps and the module that fills them', async () => {
+  await withApp('', async (port) => {
+    const get = (p) => new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port, path: p, headers: { host: `127.0.0.1:${port}` } }, (res) => {
+        let t = ''; res.on('data', (d) => { t += d; }); res.on('end', () => resolve({ status: res.statusCode, text: t }));
+      }).on('error', reject);
+    });
+    const html = (await get('/')).text;
+    for (let n = 1; n <= 6; n += 1) assert.match(html, new RegExp(`id="walk${n}Body"`));
+    assert.equal((html.match(/class="walk-n"/g) || []).length, 6);
+    assert.equal((await get('/walkthrough.js')).status, 200);
+  });
+});
+
+test('a gateway that does NOT refuse is reported as not refused', async () => {
+  const stub = await stubAs(true, { acceptAll: true });
+  try {
+    await withApp(LAB, async (port) => {
+      await call(port, 'POST', '/api/config', { mcpUrl: `${stub.base}/door/mcp`, clientId: '' }, true);
+      const { results } = await (await call(port, 'POST', '/api/cimd/refusals', undefined, true)).json();
+      assert.deepEqual(results.map((r) => [r.status, r.refused]), [[302, false], [302, false]]);
+    });
+  } finally {
+    stub.server.close();
+  }
 });

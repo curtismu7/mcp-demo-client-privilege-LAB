@@ -34,6 +34,8 @@ const state = {
     expiresAt: null
   },
   tools: [],
+  // What the walkthrough page shows about the last sign-in: how the client identified itself and what the door said.
+  walk: { discovered: false, serverCimd: null, identity: null, redirectUri: null },
   mcpSession: {
     initialized: false,
     protocolVersion: null,
@@ -458,6 +460,7 @@ async function handleStartAuth(req, res) {
     } else if (documentUrl && state.config.clientId === documentUrl) {
       clientIdentity = 'cimd';
     }
+    state.walk = { discovered: true, serverCimd: Boolean(cimdSupported), identity: clientIdentity, redirectUri };
     const verifier = randomString(48);
     const challenge = sha256Base64Url(verifier);
     const oauthState = randomString(24);
@@ -490,6 +493,40 @@ async function handleStartAuth(req, res) {
     json(res, 200, { authUrl: authUrl.toString(), clientId: state.config.clientId, clientIdentity, scope: effectiveScopes });
   } catch (error) {
     emitEvent('error', { scope: 'oauth_start', message: error.message });
+    json(res, 500, { error: error.message });
+  }
+}
+
+// The two requests a CIMD server must refuse, sent to the configured door's authorize endpoint and shown on the
+// page: a return address that is not in the client's document, and a document the admin has not listed.
+// Never signs in; redirects are not followed.
+async function handleCimdRefusals(req, res) {
+  const documentUrl = cimdClientIdUrl(LAB_HOSTS);
+  if (!documentUrl) {
+    json(res, 409, { error: 'This copy has no public address, so it has no client document to test.' });
+    return;
+  }
+  try {
+    const { authorizationUri } = await discoverAuth();
+    const probes = [
+      { id: 'wrong-redirect', label: 'A return address that is not in the document', clientId: documentUrl, redirectUri: 'https://evil.example.com/cb' },
+      { id: 'not-listed', label: 'A document the admin has not listed', clientId: 'https://example.com/not-listed.json', redirectUri: 'https://example.com/cb' }
+    ];
+    const results = [];
+    for (const probe of probes) {
+      const u = new URL(authorizationUri);
+      u.searchParams.set('response_type', 'code');
+      u.searchParams.set('client_id', probe.clientId);
+      u.searchParams.set('redirect_uri', probe.redirectUri);
+      u.searchParams.set('code_challenge', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+      u.searchParams.set('code_challenge_method', 'S256');
+      u.searchParams.set('state', 'cimd-refusal-check');
+      const r = await fetch(u, { redirect: 'manual' });
+      const text = (await r.text()).replace(/<(style|script)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240);
+      results.push({ id: probe.id, label: probe.label, clientId: probe.clientId, redirectUri: probe.redirectUri, status: r.status, refused: r.status >= 400, message: text });
+    }
+    json(res, 200, { results });
+  } catch (error) {
     json(res, 500, { error: error.message });
   }
 }
@@ -906,7 +943,9 @@ const server = http.createServer(async (req, res) => {
         authenticated: Boolean(state.oauth.accessToken),
         expiresAt: state.oauth.expiresAt
       },
-      tools: state.tools
+      tools: state.tools,
+      walk: state.walk,
+      cimdDocumentUrl: cimdClientIdUrl(LAB_HOSTS)
     });
     return;
   }
@@ -933,6 +972,11 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && parsedUrl.pathname === '/api/auth/start') {
     await handleStartAuth(req, res);
+    return;
+  }
+
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/cimd/refusals') {
+    await handleCimdRefusals(req, res);
     return;
   }
 
