@@ -1031,6 +1031,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Reset: back to a clean "start the demo" state without restarting the pod. Clears the run (hops), the sign-in,
+  // the tools and the MCP session. Keeps the settings (MCP URL, model) and the Mock/Real choice.
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/reset') {
+    Object.assign(state.oauth, { accessToken: null, refreshToken: null, expiresAt: null });
+    state.pendingAuth = null;
+    resetMcpRuntimeState();
+    state.walk = { discovered: false, serverCimd: null, identity: null, redirectUri: null };
+    if (state.config.clientId && state.config.clientId === cimdClientIdUrl(LAB_HOSTS)) state.config.clientId = '';
+    flow.reset();
+    emitEvent('reset', {});
+    json(res, 200, { ok: true });
+    return;
+  }
+
   if (req.method === 'POST' && parsedUrl.pathname === '/api/config') {
     try {
       const body = await parseBody(req);

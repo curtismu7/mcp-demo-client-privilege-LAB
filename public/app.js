@@ -282,6 +282,7 @@ els.saveConfigBtn.addEventListener('click', async () => {
 });
 
 // sameTab: the walkthrough signs in in this tab and comes back to it; the Sign In button keeps opening a new tab.
+let signInRedirect = null; // the pending same-tab hop to PingOne; Reset cancels it
 async function startAuth(sameTab) {
   try {
     if (!els.mcpUrl.value.trim() || isPlaceholderMcpUrl(els.mcpUrl.value)) {
@@ -293,7 +294,7 @@ async function startAuth(sameTab) {
     await refreshState();
     if (sameTab) {
       // Leave a moment so the chat line and step 3 can be read before the page changes.
-      setTimeout(() => window.location.assign(data.authUrl), 2500);
+      signInRedirect = setTimeout(() => window.location.assign(data.authUrl), 2500);
     } else {
       window.open(data.authUrl, '_blank', 'noopener,noreferrer');
     }
@@ -303,6 +304,21 @@ async function startAuth(sameTab) {
 }
 
 els.startAuthBtn.addEventListener('click', () => startAuth(false));
+
+// Reset: clear the run and the sign-in on the server, then repaint from a clean state. Settings are kept.
+document.querySelector('#reelReset').addEventListener('click', async () => {
+  clearTimeout(signInRedirect);
+  els.chatMessages.textContent = '';
+  els.eventLog.textContent = '';
+  for (const pane of [els.rawRpcResult, els.toolResult, els.llmResult]) pane.textContent = '';
+  try {
+    await api('/api/reset', { method: 'POST', body: {} });
+    flowUi.closeDetail();
+    await refreshState();
+  } catch (error) {
+    appendChat('system', `Reset failed: ${error.message}`);
+  }
+});
 
 // Restart: clear every message pane and start a fresh MCP session. Sign-in and settings are kept.
 els.restartBtn.addEventListener('click', async () => {

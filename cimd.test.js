@@ -388,6 +388,36 @@ test('the flow record numbers hops, keeps order, and upserts one hop per kind', 
   assert.deepEqual(small.list().map((h) => h.kind), ['b', 'c'], 'bounded');
 });
 
+test('Reset clears the run and the sign-in, keeps the settings, and the page has the button', async () => {
+  const stub = await stubAs(true);
+  try {
+    await withApp(LAB, async (port) => {
+      await call(port, 'POST', '/api/config', { mcpUrl: `${stub.base}/door/mcp`, clientId: '', llmModel: 'keep-me' }, true);
+      await call(port, 'POST', '/api/auth/start', undefined, true);
+      let st = await (await call(port, 'GET', '/api/state', undefined, true)).json();
+      assert.ok(st.flow.length > 0, 'a run exists before the reset');
+      assert.equal(st.config.clientId, 'https://lab.example/client.json');
+      const r = await call(port, 'POST', '/api/reset', {}, true);
+      assert.equal(r.status, 200);
+      st = await (await call(port, 'GET', '/api/state', undefined, true)).json();
+      assert.deepEqual(st.flow, []);
+      assert.equal(st.oauth.authenticated, false);
+      assert.deepEqual(st.tools, []);
+      assert.equal(st.config.clientId, '', 'the document address the sign-in filled in is cleared');
+      assert.equal(st.config.mcpUrl, `${stub.base}/door/mcp`, 'settings are kept');
+      assert.equal(st.config.llmModel, 'keep-me');
+      const html = await new Promise((resolve, reject) => {
+        http.get({ host: '127.0.0.1', port, path: '/', headers: { host: `127.0.0.1:${port}` } }, (res) => {
+          let t = ''; res.on('data', (d) => { t += d; }); res.on('end', () => resolve(t));
+        }).on('error', reject);
+      });
+      assert.match(html, /id="reelReset"[^>]*>Reset</);
+    });
+  } finally {
+    stub.server.close();
+  }
+});
+
 test('a sign-in start records the hops in order, for the chat and the reel, and the refusals add two more', async () => {
   const stub = await stubAs(true, { bodyUris: true });
   try {
