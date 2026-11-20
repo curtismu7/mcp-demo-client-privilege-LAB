@@ -1,4 +1,5 @@
 import { showJson } from './jsonPane.js';
+import { mountWalkthrough } from './walkthrough.js';
 
 // Keys that matter in this client's payloads: they stand out in both views of every JSON pane (Rule 24).
 const HOT = ['authenticated', 'warning', 'isError', 'suggested_tools'];
@@ -125,6 +126,7 @@ function sameTools(a, b) {
 
 function renderTools(tools) {
   uiState.tools = tools || [];
+  walk.setTools(uiState.tools);
   els.toolSelect.innerHTML = '';
   for (const tool of uiState.tools) {
     const option = document.createElement('option');
@@ -151,6 +153,13 @@ function renderStatus(extra = {}) {
   els.connectionPill.classList.toggle('pill-bad', !uiState.authenticated);
 }
 
+const walk = mountWalkthrough({
+  api,
+  inputs: { mcpUrl: els.mcpUrl, clientId: els.clientId },
+  startSignIn: () => startAuth(true),
+  refreshTools: () => els.listToolsBtn.click()
+});
+
 async function refreshState() {
   const state = await api('/api/state');
   els.mcpUrl.value = state.config.mcpUrl || '';
@@ -161,6 +170,7 @@ async function refreshState() {
   uiState.authenticated = Boolean(state.oauth?.authenticated);
   renderTools(state.tools || []);
   renderStatus({ tokenExpiresAt: state.oauth?.expiresAt || null });
+  await walk.update(state);
 }
 
 async function saveConfigFromInputs() {
@@ -263,22 +273,31 @@ els.saveConfigBtn.addEventListener('click', async () => {
   }
 });
 
-els.startAuthBtn.addEventListener('click', async () => {
+// sameTab: the walkthrough signs in in this tab and comes back to it; the Sign In button keeps opening a new tab.
+async function startAuth(sameTab) {
   try {
     await saveConfigFromInputs();
     const data = await api('/api/auth/start', { method: 'POST' });
-    window.open(data.authUrl, '_blank', 'noopener,noreferrer');
     // Say how this client introduced itself: that is the point of CIMD.
     const how = {
       cimd: `CIMD: the client_id is this app's own document URL, ${data.clientId}. Nothing was registered.`,
       dcr: `registered dynamically as ${data.clientId}.`,
       manual: `using the Client ID you entered, ${data.clientId}.`
     }[data.clientIdentity] || `client ${data.clientId}.`;
-    appendChat('system', `OAuth started (${how}) Complete login in the opened tab.`);
+    appendChat('system', `OAuth started (${how}) ${sameTab ? 'Taking you to sign in; you come back to this page.' : 'Complete login in the opened tab.'}`);
+    await refreshState();
+    if (sameTab) {
+      // Leave a moment so the chat line and step 3 can be read before the page changes.
+      setTimeout(() => window.location.assign(data.authUrl), 2500);
+    } else {
+      window.open(data.authUrl, '_blank', 'noopener,noreferrer');
+    }
   } catch (error) {
     appendChat('system', `OAuth start failed: ${error.message}`);
   }
-});
+}
+
+els.startAuthBtn.addEventListener('click', () => startAuth(false));
 
 // Restart: clear every message pane and start a fresh MCP session. Sign-in and settings are kept.
 els.restartBtn.addEventListener('click', async () => {
