@@ -289,6 +289,20 @@ test('a gateway that does NOT refuse is reported as not refused', async () => {
   }
 });
 
+test('the page hides the placeholder address, explains the empty client ID, and keeps the chat model apart', async () => {
+  await withApp('', async (port) => {
+    const html = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port, path: '/', headers: { host: `127.0.0.1:${port}` } }, (res) => {
+        let t = ''; res.on('data', (d) => { t += d; }); res.on('end', () => resolve(t));
+      }).on('error', reject);
+    });
+    assert.ok(!/\.invalid/.test(html), 'no .invalid host text in the page');
+    assert.match(html, /id="mcpUrl" placeholder="Paste the door address/);
+    assert.match(html, /Not needed with CIMD/);
+    assert.match(html, /<details class="chat-model">\s*<summary>Chat model \(not part of sign-in\)/);
+  });
+});
+
 test('the banner says only the chat model is simulated, and the header has no stray logo letter', async () => {
   await withApp('', async (port) => {
     const html = await new Promise((resolve, reject) => {
