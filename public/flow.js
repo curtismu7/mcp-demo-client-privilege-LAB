@@ -74,8 +74,8 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
     return row;
   }
 
-  function button(label, onClick, disabled) {
-    const b = el('button', { type: 'button', class: 'flow-btn', text: label });
+  function button(label, onClick, disabled, primary) {
+    const b = el('button', { type: 'button', class: primary ? 'flow-btn primary' : 'flow-btn', text: label });
     b.disabled = Boolean(disabled);
     b.addEventListener('click', onClick);
     return b;
@@ -166,12 +166,12 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
       parts.push(note(needUrl
         ? 'Hi. I am a demo client with no registration. Put the MCP address of a gateway door in the Connection panel, leave OAuth Client ID empty, then sign in.'
         : 'Ready. The MCP address is set and the Client ID is empty, so I will use my own document. Sign in when you are ready.',
-      button('Sign in', () => startSignIn(), needUrl)));
+      button('Sign in', () => startSignIn(), needUrl, true)));
     } else {
       list.forEach((h, i) => parts.push(bubble(h, i)));
       if (playAt === null) {
         if (!authed()) {
-          parts.push(note('Waiting for the sign-in to finish.', button('Sign in again', () => startSignIn())));
+          parts.push(note('Waiting for the sign-in to finish.', button('Sign in again', () => startSignIn(), false, true)));
         } else if (!list.some((h) => h.kind.startsWith('refuse-'))) {
           const b = button('Try the two refusals', (e) => runRefusals(e.currentTarget));
           parts.push(note('Signed in and listing tools. Next, two requests that must fail.', b));

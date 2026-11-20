@@ -419,3 +419,6 @@ details.raw { margin-top: .8rem; } details.raw summary { cursor: pointer; font-w
 .field-hint { display: block; margin-top: .2rem; font-size: .78rem; font-weight: 400; color: inherit; opacity: .85; }
 details.chat-model { margin: .6rem 0; }
 details.chat-model > summary { cursor: pointer; font-weight: 700; font-size: .9rem; }
+
+/* The one action this page exists for: the Ping Red primary (STANDALONE-UI-PATTERNS section 9). */
+.flow-btn.primary { padding: .55rem 1.4rem; font-size: 1rem; }
