@@ -7,7 +7,7 @@ import { buildLlmRequest, readLlmReply, llmPath } from './llm.js';
 import { shelfInfo } from './shelfLink.js';
 import { hostAllowed, isLoopbackName, labAllowedHosts, parseHost, writeAllowed } from './safety.js';
 import { gatewayMcpUrl } from './mcpUrl.js';
-import { cimdClientIdUrl, clientDocument, serverSupportsCimd } from './cimd.js';
+import { cimdClientIdUrl, clientDocument, serverSupportsCimd, setupGuideUrl } from './cimd.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 // LLM_API_KEY wins; HOSTED_LLM_VIRTUAL_KEY (the shared settings file's name for the hosted
@@ -858,6 +858,7 @@ const server = http.createServer(async (req, res) => {
       mode: state.mode,
       source: state.mode === 'real' ? 'real' : 'mock',
       realAvailable,
+      setupGuideUrl: setupGuideUrl(process.env),
       realReason: realAvailable
         ? undefined
         : 'Real needs the Privilege LLM lane: set LLM_API_KEY and point the LLM URL at <gateway>/llm/<provider>.'
