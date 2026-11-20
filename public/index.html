@@ -21,7 +21,7 @@
       <span class="shell-brand">MCP Privilege Demo Chat</span>
         <!-- ui-pattern: allow P2 the banner is static in the markup but app.js paints it from /api/info on load and on every Mock/Real switch (it states the current mode at runtime) -->
       <p class="banner" role="note" id="modeBanner" data-state="mock">
-        MOCK mode: only the chat model is simulated. Sign-in, tokens and MCP calls go to whatever MCP URL you configure, and are real when that is a real gateway (the default is a .invalid host, so nothing is contacted until you set one). Everything is shown as it happens.
+        MOCK mode: only the chat model is simulated. Sign-in, tokens and MCP calls go to whatever MCP URL you configure, and are real when that is a real gateway. Everything is shown as it happens.
       </p>
       <div class="pill" id="connectionPill">Disconnected</div>
       <nav class="top-menu top-menu--framed" data-testid="top-menu" aria-label="Top menu">
@@ -93,7 +93,7 @@
             banner.dataset.state = real ? "live" : "mock";
             banner.textContent = real
               ? "REAL mode: the chat model call is routed through the Privilege LLM lane and governed by its policy. Sign-in and MCP calls go to whatever MCP URL you configure."
-              : "MOCK mode: only the chat model is simulated. Sign-in, tokens and MCP calls go to whatever MCP URL you configure, and are real when that is a real gateway (the default is a .invalid host, so nothing is contacted until you set one). Everything is shown as it happens.";
+              : "MOCK mode: only the chat model is simulated. Sign-in, tokens and MCP calls go to whatever MCP URL you configure, and are real when that is a real gateway. Everything is shown as it happens.";
           }
         }
         fetch("/api/info").then(function (r) { return r.json(); }).then(paint).catch(function () {});
@@ -131,25 +131,29 @@
       <aside class="panel sidebar">
         <h2>Connection</h2>
         <label>
-          MCP URL
-          <input id="mcpUrl" />
+          MCP URL (the door on the gateway)
+          <input id="mcpUrl" placeholder="Paste the door address" />
         </label>
         <label>
           OAuth Client ID
-          <input id="clientId" />
+          <input id="clientId" placeholder="Leave empty" />
+          <span class="field-hint">Not needed with CIMD. The ID is the address of the client's document (step 1).</span>
         </label>
         <label>
           Scopes
           <input id="scopes" />
         </label>
-        <label>
-          LLM URL
-          <input id="llmUrl" />
-        </label>
-        <label>
-          LLM Model
-          <input id="llmModel" />
-        </label>
+        <details class="chat-model">
+          <summary>Chat model (not part of sign-in)</summary>
+          <label>
+            LLM URL
+            <input id="llmUrl" />
+          </label>
+          <label>
+            LLM Model
+            <input id="llmModel" />
+          </label>
+        </details>
         <div class="buttons">
           <button id="saveConfigBtn" type="button">Save</button>
           <button id="startAuthBtn" type="button">Sign In</button>

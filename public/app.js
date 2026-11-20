@@ -163,7 +163,8 @@ const flowUi = mountFlow({
 
 async function refreshState() {
   const state = await api('/api/state');
-  els.mcpUrl.value = state.config.mcpUrl || '';
+  // The shipped placeholder address is not something to show: leave the box empty so the hint reads.
+  els.mcpUrl.value = isPlaceholderMcpUrl(state.config.mcpUrl) ? '' : (state.config.mcpUrl || '');
   els.clientId.value = state.config.clientId || '';
   els.scopes.value = state.config.scopes || '';
   els.llmUrl.value = state.config.llmUrl || '';
@@ -187,7 +188,7 @@ async function saveConfigFromInputs() {
 
 async function refreshToolsAuto() {
   // The shipped MCP address is a placeholder that can never resolve: ask nothing of it, and show no error.
-  if (isPlaceholderMcpUrl(els.mcpUrl.value)) return;
+  if (!els.mcpUrl.value.trim() || isPlaceholderMcpUrl(els.mcpUrl.value)) return;
   // Listing tools needs a token, so there is nothing to poll for before sign-in (and a half-typed address must never be tried).
   if (!uiState.authenticated) return;
   if (uiState.autoRefresh.inFlight) return;
@@ -283,6 +284,10 @@ els.saveConfigBtn.addEventListener('click', async () => {
 // sameTab: the walkthrough signs in in this tab and comes back to it; the Sign In button keeps opening a new tab.
 async function startAuth(sameTab) {
   try {
+    if (!els.mcpUrl.value.trim() || isPlaceholderMcpUrl(els.mcpUrl.value)) {
+      appendChat('system', 'Paste the MCP door address from your gateway into the MCP URL box first.');
+      return;
+    }
     await saveConfigFromInputs();
     const data = await api('/api/auth/start', { method: 'POST' });
     await refreshState();

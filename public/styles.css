@@ -414,3 +414,8 @@ details.raw { margin-top: .8rem; } details.raw summary { cursor: pointer; font-w
 .flow-pane { margin-top: .4rem; }
 .flow-detail-close { flex: none; width: auto; }
 .flow-detail-ttl { min-width: 0; }
+
+.flow-role { display: inline-block; margin: .35rem 0 .1rem; padding: .2rem .6rem; border: 1px solid var(--c, var(--accent, currentColor)); border-radius: 999px; font-size: .82rem; font-weight: 700; color: var(--text-body); }
+.field-hint { display: block; margin-top: .2rem; font-size: .78rem; font-weight: 400; color: inherit; opacity: .85; }
+details.chat-model { margin: .6rem 0; }
+details.chat-model > summary { cursor: pointer; font-weight: 700; font-size: .9rem; }

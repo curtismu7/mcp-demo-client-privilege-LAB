@@ -100,6 +100,17 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
     detailEl = null;
     detailPanel = null;
   }
+  // One fixed role per address, so the viewer never wonders which URL is which.
+  const ROLE = {
+    doc: "The client's ID card: its own address is its client ID",
+    door: 'The door: the MCP address on the gateway',
+    'resource-metadata': "The gateway's metadata about the door",
+    'as-metadata': "The gateway's sign-in server metadata (.well-known)",
+    'signin-start': 'The sign-in link the browser follows to PingOne',
+    accepted: 'The return address back to the client',
+    token: "The gateway's token endpoint",
+    tools: 'The door: the MCP address on the gateway'
+  };
   function openDetail(h) {
     closeDetail();
     const l = lane(h);
@@ -112,9 +123,11 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
           el('div', { class: 'flow-detail-from', text: `${h.from === h.to ? h.from : `${h.from} → ${h.to}`} · step ${h.step}` }),
           el('div', { text: h.title }))),
       el('button', { type: 'button', class: 'fd-btn flow-detail-close', 'aria-label': 'Close', title: 'Close', text: '×' }));
+    titlebar.querySelector('.flow-detail-close').addEventListener('click', closeDetail);
     box.append(titlebar);
     const body = el('div', { class: 'fd-body' });
     box.append(body);
+    if (ROLE[h.kind]) body.append(el('div', { class: 'flow-role', text: `This address is: ${ROLE[h.kind]}` }));
     body.append(el('p', { class: 'flow-detail-say', text: h.say }));
     const d = h.detail;
     if (!d) {
