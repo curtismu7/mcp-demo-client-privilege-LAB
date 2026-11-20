@@ -376,6 +376,15 @@ async function discoverAuth() {
   const tokenUri = body.token_uri || null;
 
   if (authorizationUri && tokenUri) {
+    // The 401 body names the sign-in endpoints, but CIMD support (and dynamic registration) are advertised in the
+    // authorization server metadata the same 401 points at, so read that first. If it cannot be read, the endpoints
+    // from the body are still enough to sign in with a Client ID you typed.
+    try {
+      const viaResource = await discoverResourceMetadata(response, state.config.mcpUrl);
+      if (viaResource) return viaResource;
+    } catch {
+      // Fall back to the endpoints in the body.
+    }
     return { authorizationUri, tokenUri };
   }
 

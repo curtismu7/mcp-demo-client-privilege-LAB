@@ -48,7 +48,7 @@ const freePort = () => new Promise((resolve, reject) => {
 });
 
 // Stub: a 401 MCP endpoint, resource metadata, AS metadata (CIMD flag on or off) and a /register counter.
-function stubAs(cimd, { acceptAll = false } = {}) {
+function stubAs(cimd, { acceptAll = false, bodyUris = false } = {}) {
   const calls = { register: 0 };
   const server = http.createServer((req, res) => {
     const base = `http://127.0.0.1:${server.address().port}`;
@@ -56,7 +56,8 @@ function stubAs(cimd, { acceptAll = false } = {}) {
       res.writeHead(code, { 'content-type': 'application/json', ...headers });
       res.end(JSON.stringify(body));
     };
-    if (req.url === '/door/mcp') return send(401, {}, { 'www-authenticate': `Bearer resource_metadata="${base}/rm"` });
+    // The real gateway puts authorization_uri and token_uri in the 401 body as well as naming its resource metadata.
+    if (req.url === '/door/mcp') return send(401, bodyUris ? { error: 'unauthorized', authorization_uri: `${base}/as/authorize`, token_uri: `${base}/as/token` } : {}, { 'www-authenticate': `Bearer resource_metadata="${base}/rm"` });
     if (req.url === '/rm') return send(200, { authorization_servers: [`${base}/as`] });
     if (req.url === '/as/.well-known/oauth-authorization-server') {
       return send(200, {
@@ -296,4 +297,35 @@ test('the banner says only the chat model is simulated, and the header has no st
     assert.ok(!html.includes('shell-logo'));
     assert.match(html, /<span class="shell-brand">MCP Privilege Demo Chat<\/span>/);
   });
+});
+
+test('a door whose 401 body already names the sign-in endpoints is still checked for CIMD support', async () => {
+  const stub = await stubAs(true, { bodyUris: true });
+  try {
+    await withApp(LAB, async (port) => {
+      await call(port, 'POST', '/api/config', { mcpUrl: `${stub.base}/door/mcp`, clientId: '' }, true);
+      const res = await call(port, 'POST', '/api/auth/start', undefined, true);
+      const body = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(body));
+      assert.equal(body.clientIdentity, 'cimd');
+      assert.equal(body.clientId, 'https://lab.example/client.json');
+      assert.equal(stub.calls.register, 0);
+    });
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('a door with endpoints in the 401 body but no CIMD still gets dynamic registration', async () => {
+  const stub = await stubAs(false, { bodyUris: true });
+  try {
+    await withApp(LAB, async (port) => {
+      await call(port, 'POST', '/api/config', { mcpUrl: `${stub.base}/door/mcp`, clientId: '' }, true);
+      const body = await (await call(port, 'POST', '/api/auth/start', undefined, true)).json();
+      assert.equal(body.clientIdentity, 'dcr');
+      assert.equal(stub.calls.register, 1);
+    });
+  } finally {
+    stub.server.close();
+  }
 });
