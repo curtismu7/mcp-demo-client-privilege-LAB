@@ -25,3 +25,13 @@ export function createFlow(max = 40) {
     list() { return hops.map((h) => ({ ...h })); }
   };
 }
+
+// Tokens, codes, secrets and verifiers never go into a hop. Everything else (metadata, status, headers) is shown.
+const SECRETISH = /(^|_)(token|code|secret|verifier|password|assertion)$/i;
+export function redactBody(value) {
+  if (Array.isArray(value)) return value.map(redactBody);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, SECRETISH.test(k) && v ? '[redacted]' : redactBody(v)]));
+  }
+  return value;
+}

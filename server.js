@@ -8,7 +8,7 @@ import { shelfInfo } from './shelfLink.js';
 import { hostAllowed, isLoopbackName, labAllowedHosts, parseHost, writeAllowed } from './safety.js';
 import { gatewayMcpUrl } from './mcpUrl.js';
 import { cimdClientIdUrl, clientDocument, serverSupportsCimd, setupGuideUrl } from './cimd.js';
-import { createFlow } from './flow.js';
+import { createFlow, redactBody } from './flow.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 // LLM_API_KEY wins; HOSTED_LLM_VIRTUAL_KEY (the shared settings file's name for the hosted
@@ -327,7 +327,8 @@ async function discoverResourceMetadata(response, mcpUrl) {
     ? rm.authorization_servers[0]
     : null;
   if (!asUrl) return null;
-  const asResponse = await fetch(`${asUrl}/.well-known/oauth-authorization-server`, { method: 'GET' });
+  const asMetaUrl = `${asUrl}/.well-known/oauth-authorization-server`;
+  const asResponse = await fetch(asMetaUrl, { method: 'GET' });
   if (!asResponse.ok) return null;
   const asMeta = await asResponse.json();
   if (!asMeta.authorization_endpoint || !asMeta.token_endpoint) return null;
@@ -336,7 +337,12 @@ async function discoverResourceMetadata(response, mcpUrl) {
     tokenUri: asMeta.token_endpoint,
     registrationUri: asMeta.registration_endpoint || null,
     cimdSupported: serverSupportsCimd(asMeta),
-    scopes: Array.isArray(rm.scopes_supported) ? rm.scopes_supported : null
+    scopes: Array.isArray(rm.scopes_supported) ? rm.scopes_supported : null,
+    // The two calls as they happened, for the page's detail box. Public metadata, nothing secret.
+    trace: {
+      resource: { method: 'GET', url: rmUrl, status: rmResponse.status, body: rm },
+      authorizationServer: { method: 'GET', url: asMetaUrl, status: asResponse.status, body: asMeta }
+    }
   };
 }
 
@@ -366,6 +372,9 @@ async function discoverAuth() {
   const response = await fetch(state.config.mcpUrl, { method: 'GET' });
   const doorStatus = response.status;
   const bodyText = await response.text();
+  let doorBody;
+  try { doorBody = JSON.parse(bodyText); } catch { doorBody = bodyText.slice(0, 400); }
+  const doorTrace = { method: 'GET', url: state.config.mcpUrl, status: response.status, headers: { 'www-authenticate': response.headers.get('www-authenticate') || undefined }, body: doorBody };
   let body;
   try {
     body = JSON.parse(bodyText);
@@ -385,11 +394,11 @@ async function discoverAuth() {
     // from the body are still enough to sign in with a Client ID you typed.
     try {
       const viaResource = await discoverResourceMetadata(response, state.config.mcpUrl);
-      if (viaResource) return { ...viaResource, doorStatus };
+      if (viaResource) return { ...viaResource, doorStatus, doorTrace };
     } catch {
       // Fall back to the endpoints in the body.
     }
-    return { authorizationUri, tokenUri, doorStatus };
+    return { authorizationUri, tokenUri, doorStatus, doorTrace };
   }
 
   // RFC 9728 resource-metadata discovery: from the 401's WWW-Authenticate when present,
@@ -404,7 +413,7 @@ async function discoverAuth() {
       const probe = { headers: response.headers, status: 401 };
       viaResource = await discoverResourceMetadata(probe, state.config.mcpUrl);
     }
-    if (viaResource) return { ...viaResource, doorStatus };
+    if (viaResource) return { ...viaResource, doorStatus, doorTrace };
   } catch {
     // Fall through to the PingOne hosted pattern below.
   }
@@ -425,7 +434,8 @@ async function discoverAuth() {
           return {
             authorizationUri: meta.authorization_endpoint,
             tokenUri: meta.token_endpoint,
-            doorStatus
+            doorStatus,
+            doorTrace
           };
         }
       }
@@ -439,22 +449,41 @@ async function discoverAuth() {
   );
 }
 
-// The hops of one sign-in attempt, as far as the client can tell. A new attempt starts a new run.
-function recordSignInStart({ documentUrl, doorStatus, cimdSupported, clientIdentity, redirectUri, authorizationUri }) {
+// The hops of one sign-in attempt, as far as the client can tell. One hop is one real API call or one decision, with
+// the request and response as they happened for the page's detail box.
+function recordSignInStart({ documentUrl, doorStatus, doorTrace, trace, cimdSupported, clientIdentity, redirectUri, authorizationUri }) {
   flow.reset();
   const door = new URL(state.config.mcpUrl);
+  const path = (u) => { try { const x = new URL(u); return x.pathname; } catch { return u; } };
   const ident = {
     cimd: ['Uses its own document as client_id', 'nothing registered', `I will identify myself with my own document: ${state.config.clientId}. Nothing to register.`],
     dcr: ['Registers with the server', 'a new client record was created', `The server did not accept a document URL, so I registered and got the ID ${state.config.clientId}.`],
     manual: ['Uses the Client ID it was given', 'no document, no registration', `Using the Client ID you entered: ${state.config.clientId}.`]
   }[clientIdentity] || ['Identifies itself', '', ''];
   if (documentUrl) {
-    flow.add({ kind: 'doc', lane: 'client', from: 'Client', to: 'Client', step: 1, title: "Publishes its ID card", fact: `client_id is ${documentUrl}`, status: 'OK', tone: 'ok', say: "My client ID is the address of this file. I register nothing." });
+    flow.add({ kind: 'doc', lane: 'client', from: 'Client', to: 'Client', step: 1, title: 'Publishes its ID card', fact: `client_id is ${documentUrl}`, status: 'OK', tone: 'ok', say: 'My client ID is the address of this file. I register nothing.',
+      detail: { request: { method: 'GET', url: documentUrl }, response: { status: 200, body: clientDocument(LAB_HOSTS) } } });
   }
-  flow.add({ kind: 'door', lane: 'client', from: 'Client', to: 'Gateway', step: 3, title: 'Calls the door with no token', fact: `GET ${door.host}${door.pathname}`, status: String(doorStatus || 401), tone: 'warn', say: 'Calling the door with no token.' });
-  flow.add({ kind: 'metadata', lane: 'gateway', from: 'Gateway', to: 'Client', step: 3, title: 'Answers with sign-in metadata', fact: cimdSupported ? 'accepts document URLs as client ID' : 'does not accept document URLs', status: 'OK', tone: cimdSupported ? 'ok' : 'warn', say: cimdSupported ? '401. Sign in at /authorize. I accept document URLs as client ID.' : '401. Sign in at /authorize. I do not accept document URLs.' });
+  flow.add({ kind: 'door', lane: 'client', from: 'Client', to: 'Gateway', step: 3, title: 'Calls the door with no token', fact: `GET ${door.host}${door.pathname}  →  ${doorStatus || 401}`, status: String(doorStatus || 401), tone: 'warn', say: 'Calling the door with no token. It answers 401 and points at its sign-in metadata.',
+    detail: doorTrace && { request: { method: doorTrace.method, url: doorTrace.url }, response: { status: doorTrace.status, headers: doorTrace.headers, body: doorTrace.body } } });
+  if (trace?.resource) {
+    const as = trace.resource.body?.authorization_servers?.[0] || '';
+    flow.add({ kind: 'resource-metadata', lane: 'gateway', from: 'Client', to: 'Gateway', step: 3, title: 'Reads the resource metadata', fact: `GET ${path(trace.resource.url)}  →  ${trace.resource.status}`, status: 'OK', tone: 'ok', say: `Reading the metadata the 401 pointed at. It names the authorization server: ${as}.`,
+      detail: { request: { method: trace.resource.method, url: trace.resource.url }, response: { status: trace.resource.status, body: trace.resource.body } } });
+  }
+  if (trace?.authorizationServer) {
+    flow.add({ kind: 'as-metadata', lane: 'gateway', from: 'Client', to: 'Gateway', step: 3, title: 'Reads the authorization server metadata', fact: `GET ${path(trace.authorizationServer.url)}  →  ${trace.authorizationServer.status}`, status: cimdSupported ? 'CIMD yes' : 'CIMD no', tone: cimdSupported ? 'ok' : 'warn',
+      say: cimdSupported ? 'The authorization server says it accepts a document URL as client ID: client_id_metadata_document_supported is true.' : 'The authorization server does not say it accepts document URLs.',
+      detail: { request: { method: trace.authorizationServer.method, url: trace.authorizationServer.url }, response: { status: trace.authorizationServer.status, body: trace.authorizationServer.body } } });
+  }
   flow.add({ kind: 'identity', lane: 'client', from: 'Client', to: 'Gateway', step: 3, title: ident[0], fact: ident[1], status: 'OK', tone: 'ok', say: ident[2] });
-  flow.add({ kind: 'signin-start', lane: 'idp', from: 'Client', to: 'PingOne', step: 3, title: 'Sent to sign in', fact: `via ${new URL(authorizationUri).host}, return to ${new URL(redirectUri).pathname}`, status: 'OK', tone: 'ok', say: 'Sending you to sign in. PingOne will ask for demouser and an MFA approval.' });
+}
+
+// The sign-in link as built: the browser follows it, so only the request is shown.
+function recordSignInLink(authUrl) {
+  const u = new URL(authUrl);
+  flow.add({ kind: 'signin-start', lane: 'idp', from: 'Client', to: 'PingOne', step: 3, title: 'Sent to sign in', fact: `GET ${u.pathname} (the browser follows it)`, status: 'OK', tone: 'ok', say: 'Sending you to sign in. The gateway checks my document first, then PingOne asks for demouser and an MFA approval.',
+    detail: { request: { method: 'GET', url: authUrl, body: Object.fromEntries(u.searchParams) }, note: 'The browser follows this link. The client cannot see the gateway fetching the document or the redirect to PingOne.' } });
 }
 
 async function handleStartAuth(req, res) {
@@ -465,7 +494,7 @@ async function handleStartAuth(req, res) {
     const redirectUri = incoming && !isLoopbackName(incoming.name) && incoming.name === [...LAB_HOSTS][0]
       ? `https://${incoming.name}/auth/callback`
       : `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST}:${PORT}/auth/callback`;
-    const { authorizationUri, tokenUri, registrationUri, cimdSupported, scopes, doorStatus } = await discoverAuth();
+    const { authorizationUri, tokenUri, registrationUri, cimdSupported, scopes, doorStatus, doorTrace, trace } = await discoverAuth();
     // No client id set? Prefer CIMD: when the server accepts a client metadata document and this build
     // has a public address, the client_id is the URL of our own /client.json and nothing is registered.
     // Otherwise register with the server's RFC 7591 endpoint when it offers one (the SkyHigh Airline
@@ -493,7 +522,7 @@ async function handleStartAuth(req, res) {
       clientIdentity = 'cimd';
     }
     state.walk = { discovered: true, serverCimd: Boolean(cimdSupported), identity: clientIdentity, redirectUri };
-    recordSignInStart({ documentUrl, doorStatus, cimdSupported, clientIdentity, redirectUri, authorizationUri });
+    recordSignInStart({ documentUrl, doorStatus, doorTrace, trace, cimdSupported, clientIdentity, redirectUri, authorizationUri });
     const verifier = randomString(48);
     const challenge = sha256Base64Url(verifier);
     const oauthState = randomString(24);
@@ -515,6 +544,8 @@ async function handleStartAuth(req, res) {
       redirectUri,
       scope: effectiveScopes
     };
+
+    recordSignInLink(authUrl.toString());
 
     emitEvent('oauth', {
       phase: 'start',
@@ -556,11 +587,11 @@ async function handleCimdRefusals(req, res) {
       u.searchParams.set('state', 'cimd-refusal-check');
       const r = await fetch(u, { redirect: 'manual' });
       const text = (await r.text()).replace(/<(style|script)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240);
-      results.push({ id: probe.id, label: probe.label, clientId: probe.clientId, redirectUri: probe.redirectUri, status: r.status, refused: r.status >= 400, message: text });
+      results.push({ id: probe.id, label: probe.label, clientId: probe.clientId, redirectUri: probe.redirectUri, requestUrl: u.toString(), status: r.status, refused: r.status >= 400, message: text });
     }
     flow.removeKinds(['refuse-wrong-redirect', 'refuse-not-listed']);
     for (const r of results) {
-      flow.add({ kind: `refuse-${r.id}`, lane: 'gateway', from: 'Gateway', to: 'Client', step: 6, title: r.id === 'wrong-redirect' ? 'Refuses a wrong return address' : 'Refuses a document that is not listed', fact: r.message || `HTTP ${r.status}`, status: r.refused ? `Refused ${r.status}` : `NOT refused ${r.status}`, tone: r.refused ? 'ok' : 'bad', say: r.refused ? `Refused (HTTP ${r.status}): ${r.label.toLowerCase()}. ${r.message}` : `NOT refused (HTTP ${r.status}): ${r.label.toLowerCase()}.` });
+      flow.add({ kind: `refuse-${r.id}`, lane: 'gateway', from: 'Gateway', to: 'Client', step: 6, title: r.id === 'wrong-redirect' ? 'Refuses a wrong return address' : 'Refuses a document that is not listed', fact: `GET ${new URL(authorizationUri).pathname}  →  ${r.status}`, status: r.refused ? `Refused ${r.status}` : `NOT refused ${r.status}`, tone: r.refused ? 'ok' : 'bad', detail: { request: { method: 'GET', url: r.requestUrl, body: { client_id: r.clientId, redirect_uri: r.redirectUri } }, response: { status: r.status, body: r.message } }, say: r.refused ? `Refused (HTTP ${r.status}): ${r.label.toLowerCase()}. ${r.message}` : `NOT refused (HTTP ${r.status}): ${r.label.toLowerCase()}.` });
     }
     json(res, 200, { results });
   } catch (error) {
@@ -634,7 +665,8 @@ async function handleAuthCallback(req, res, parsedUrl) {
     });
 
     flow.upsert('accepted', { lane: 'gateway', from: 'Gateway', to: 'Client', step: 4, title: 'Accepts the document and signs the user in', fact: 'it issued a code, so the document passed its checks', status: 'OK', tone: 'ok', say: 'Signed in. I issued a code, so the document passed my checks: it is on the approved list and the return address matches.' });
-    flow.upsert('token', { lane: 'client', from: 'Client', to: 'Gateway', step: 5, title: 'Swaps the code for a token', fact: 'PKCE, no client secret', status: 'OK', tone: 'ok', say: 'Swapped the code for a token with PKCE. No client secret was involved.' });
+    flow.upsert('token', { lane: 'client', from: 'Client', to: 'Gateway', step: 5, title: 'Swaps the code for a token', fact: `POST ${new URL(tokenResponse.url).pathname}  →  ${tokenResponse.status} (PKCE, no secret)`, status: 'OK', tone: 'ok', say: 'Swapped the code for a token with PKCE. No client secret was involved.',
+      detail: { request: { method: 'POST', url: tokenResponse.url, body: redactBody(Object.fromEntries(tokenBody)) }, response: { status: tokenResponse.status, body: redactBody(tokenData) } } });
 
     res.writeHead(302, { Location: '/?auth=success' });
     res.end();
@@ -666,9 +698,16 @@ async function handleListTools(req, res) {
       }
     }
     state.tools = data.result?.tools || [];
-    flow.upsert('tools', { lane: 'mcp', from: 'Client', to: 'MCP server', step: 5, title: 'Lists the tools', fact: `${state.tools.length} ${state.tools.length === 1 ? 'tool' : 'tools'} returned`, status: 'OK', tone: 'ok', say: state.tools.length ? `Tools: ${state.tools.map((t) => t.name).join(', ')}.` : 'The server returned no tools.' });
+    flow.upsert('tools', { lane: 'mcp', from: 'Client', to: 'MCP server', step: 5, title: 'Lists the tools', fact: `POST ${new URL(state.config.mcpUrl).pathname}  tools/list  →  ${state.tools.length} ${state.tools.length === 1 ? 'tool' : 'tools'}`, status: 'OK', tone: 'ok', say: state.tools.length ? `Tools: ${state.tools.map((t) => t.name).join(', ')}.` : 'The server returned no tools.',
+      detail: { request: { method: 'POST', url: state.config.mcpUrl, headers: { authorization: 'Bearer [redacted]' }, body: { jsonrpc: '2.0', method: 'tools/list', params: {} } }, response: { status: 200, body: { result: { tools: state.tools.map((t) => ({ name: t.name, description: t.description })) } } } } });
     json(res, 200, { tools: state.tools });
   } catch (error) {
+    // Signed in but refused: that is a result worth showing, once, on the run. Before sign-in there is nothing to report.
+    if (state.oauth.accessToken) {
+      const status = (error.message.match(/\b(\d{3})\b/) || [])[1] || 'error';
+      flow.upsert('tools', { lane: 'mcp', from: 'Client', to: 'MCP server', step: 5, title: 'Tool list refused', fact: `POST ${new URL(state.config.mcpUrl).pathname}  tools/list  →  ${status}`, status: `Refused ${status}`, tone: 'bad', say: `The gateway refused the tools call (${error.message.trim()}). The client was accepted and the user signed in, but this call was not allowed.`,
+        detail: { request: { method: 'POST', url: state.config.mcpUrl, headers: { authorization: 'Bearer [redacted]' }, body: { jsonrpc: '2.0', method: 'tools/list', params: {} } }, response: { status: Number(status) || undefined, body: error.message.trim() } } });
+    }
     resetMcpRuntimeState();
     emitEvent('error', { scope: 'tools_list', message: error.message });
     json(res, 500, { error: error.message });

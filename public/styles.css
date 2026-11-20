@@ -391,3 +391,18 @@ details summary {
 .flow-empty { color: var(--muted); font-size: .95rem; margin: .4rem 0; }
 details.raw { margin-top: .8rem; } details.raw summary { cursor: pointer; font-weight: 600; }
 #eventLog { min-height: 120px; max-height: 260px; }
+
+/* The pop-out box: the real API call behind a hop. */
+.flow-msg.has-detail { cursor: pointer; }
+.flow-msg.has-detail:hover .flow-bub { border-color: var(--accent); }
+.flow-detail { position: fixed; z-index: 50; top: 110px; right: 24px; width: min(620px, calc(100vw - 48px)); max-height: calc(100vh - 150px); overflow: auto; resize: both; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-top: 5px solid var(--c); border-radius: 12px; padding: .8rem 1rem 1rem; box-shadow: 0 16px 44px rgba(0, 0, 0, .55); }
+.flow-detail-head { display: flex; align-items: center; gap: .7rem; }
+.flow-detail-ttl { flex: 1; font-weight: 700; font-size: 1.05rem; } .flow-detail-from { font-size: .8rem; color: var(--c); font-weight: 700; }
+.flow-detail-say { margin: .5rem 0; font-size: .95rem; color: var(--text-body); }
+.flow-sec h3 { margin: .7rem 0 .3rem; font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.flow-call { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; }
+.flow-method { background: var(--c); color: var(--box-dark); border-radius: 4px; padding: 0 .45rem; font-weight: 700; font-size: .8rem; }
+.flow-call code { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: .82rem; }
+.flow-pane { margin-top: .4rem; }
+.flow-detail-close { flex: none; width: auto; }
+.flow-detail-ttl { min-width: 0; }

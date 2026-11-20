@@ -188,6 +188,8 @@ async function saveConfigFromInputs() {
 async function refreshToolsAuto() {
   // The shipped MCP address is a placeholder that can never resolve: ask nothing of it, and show no error.
   if (isPlaceholderMcpUrl(els.mcpUrl.value)) return;
+  // Listing tools needs a token, so there is nothing to poll for before sign-in (and a half-typed address must never be tried).
+  if (!uiState.authenticated) return;
   if (uiState.autoRefresh.inFlight) return;
   uiState.autoRefresh.inFlight = true;
   try {
