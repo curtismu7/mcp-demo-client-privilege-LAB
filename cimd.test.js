@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { cimdClientIdUrl, clientDocument, serverSupportsCimd, setupGuideUrl } from './cimd.js';
 import { labAllowedHosts } from './safety.js';
+import { isPlaceholderMcpUrl } from './public/mcpUrlCheck.js';
 
 // Example names only (.example); the real lab name lives in docker-compose.yml.
 const LAB = 'lab.example';
@@ -328,4 +329,30 @@ test('a door with endpoints in the 401 body but no CIMD still gets dynamic regis
   } finally {
     stub.server.close();
   }
+});
+
+test('the shipped placeholder MCP address counts as nothing to ask, a real gateway does not', () => {
+  assert.equal(isPlaceholderMcpUrl('https://mcp-gateway.example.invalid/mcp/'), true);
+  assert.equal(isPlaceholderMcpUrl('http://x.invalid'), true);
+  assert.equal(isPlaceholderMcpUrl(''), true);
+  assert.equal(isPlaceholderMcpUrl('not a url'), true);
+  assert.equal(isPlaceholderMcpUrl('https://gateway.example.com/door/mcp/'), false);
+  assert.equal(isPlaceholderMcpUrl('http://127.0.0.1:6970/door/mcp/'), false);
+});
+
+test('the page has one visible title that says what it does, and the auto-refresh skips the placeholder', async () => {
+  await withApp('', async (port) => {
+    const get = (p) => new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port, path: p, headers: { host: `127.0.0.1:${port}` } }, (res) => {
+        let t = ''; res.on('data', (d) => { t += d; }); res.on('end', () => resolve(t));
+      }).on('error', reject);
+    });
+    const html = await get('/');
+    assert.equal((html.match(/<h1[\s>]/g) || []).length, 1, 'exactly one h1');
+    assert.ok(!/<h1 class="visually-hidden"/.test(html), 'the title is visible');
+    assert.match(html, /<h1 id="pageTitle">Sign in to a Privilege-protected MCP server with a document URL/);
+    assert.match(html, /class="page-lead"/);
+    const js = await get('/app.js');
+    assert.match(js, /isPlaceholderMcpUrl\(els\.mcpUrl\.value\)/);
+  });
 });

@@ -61,6 +61,19 @@ body {
 .shell-bar .banner {
   flex: 1 1 320px;
   margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.shell-brand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+.shell-bar .top-menu,
+.shell-bar .pill {
+  font-size: 1rem;
 }
 
 .top-menu--framed {
@@ -347,3 +360,8 @@ details summary {
 .walk-tools { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
 .walk-tool { border: 1px solid var(--border); border-radius: 6px; padding: .05rem .4rem; font-size: .8rem; font-family: var(--font-mono); }
 .walk-refusal { margin-top: .5rem; display: grid; gap: .15rem; }
+
+/* Page title: says what the page does, above the walkthrough. */
+.page-intro { padding: 18px 12px 0; }
+.page-intro h1 { margin: 0 0 .4rem; font-size: 1.9rem; line-height: 1.2; color: var(--text); }
+.page-lead { margin: 0; max-width: 80ch; font-size: 1.05rem; line-height: 1.5; color: var(--text-body); }

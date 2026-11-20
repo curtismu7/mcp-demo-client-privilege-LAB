@@ -1,5 +1,6 @@
 import { showJson } from './jsonPane.js';
 import { mountWalkthrough } from './walkthrough.js';
+import { isPlaceholderMcpUrl } from './mcpUrlCheck.js';
 
 // Keys that matter in this client's payloads: they stand out in both views of every JSON pane (Rule 24).
 const HOT = ['authenticated', 'warning', 'isError', 'suggested_tools'];
@@ -185,6 +186,8 @@ async function saveConfigFromInputs() {
 }
 
 async function refreshToolsAuto() {
+  // The shipped MCP address is a placeholder that can never resolve: ask nothing of it, and show no error.
+  if (isPlaceholderMcpUrl(els.mcpUrl.value)) return;
   if (uiState.autoRefresh.inFlight) return;
   uiState.autoRefresh.inFlight = true;
   try {
@@ -210,7 +213,9 @@ async function refreshToolsAuto() {
     const message = error.message;
     uiState.authenticated = false;
     uiState.autoRefresh.lastRun = new Date().toISOString();
-    if (!uiState.lastRefreshError || uiState.lastRefreshError !== message) {
+    // Before sign-in a real gateway answers 401: that is the expected state, not a failure to report.
+    const notSignedIn = /\b401\b|unauthor|bearer token/i.test(message);
+    if (!notSignedIn && (!uiState.lastRefreshError || uiState.lastRefreshError !== message)) {
       appendChat('system', 'Auto-refresh failed.', { error: message });
       uiState.lastRefreshError = message;
     }
