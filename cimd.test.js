@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { cimdClientIdUrl, clientDocument, serverSupportsCimd, setupGuideUrl } from './cimd.js';
 import { labAllowedHosts } from './safety.js';
+import { createFlow } from './flow.js';
 import { isPlaceholderMcpUrl } from './public/mcpUrlCheck.js';
 
 // Example names only (.example); the real lab name lives in docker-compose.yml.
@@ -258,7 +259,7 @@ test('the refusal probes ask the door and report what it says; no document means
   }
 });
 
-test('the page has the six numbered walkthrough steps and the module that fills them', async () => {
+test('the page has the six numbered steps, the flow chat, the vertical reel and the raw events folded away', async () => {
   await withApp('', async (port) => {
     const get = (p) => new Promise((resolve, reject) => {
       http.get({ host: '127.0.0.1', port, path: p, headers: { host: `127.0.0.1:${port}` } }, (res) => {
@@ -266,9 +267,12 @@ test('the page has the six numbered walkthrough steps and the module that fills 
       }).on('error', reject);
     });
     const html = (await get('/')).text;
-    for (let n = 1; n <= 6; n += 1) assert.match(html, new RegExp(`id="walk${n}Body"`));
-    assert.equal((html.match(/class="walk-n"/g) || []).length, 6);
-    assert.equal((await get('/walkthrough.js')).status, 200);
+    assert.equal((html.match(/class="st-n"/g) || []).length, 6, 'six numbered steps');
+    for (const id of ['stepper', 'flowChat', 'reel', 'reelRun', 'reelSpeed']) assert.match(html, new RegExp(`id="${id}"`));
+    assert.match(html, /<details class="raw">\s*<summary>Raw events<\/summary>\s*<pre id="eventLog"/, 'the raw dump is folded away, not the main view');
+    assert.ok(!html.includes('Live Relay'), 'the old dump heading is gone');
+    assert.equal((await get('/flow.js')).status, 200);
+    assert.equal((await get('/walkthrough.js')).status, 404, 'the six-card walkthrough is gone');
   });
 });
 
@@ -355,4 +359,43 @@ test('the page has one visible title that says what it does, and the auto-refres
     const js = await get('/app.js');
     assert.match(js, /isPlaceholderMcpUrl\(els\.mcpUrl\.value\)/);
   });
+});
+
+test('the flow record numbers hops, keeps order, and upserts one hop per kind', () => {
+  const f = createFlow();
+  f.add({ kind: 'door', title: 'a' }); f.add({ kind: 'metadata', title: 'b' }); f.upsert('tools', { title: 'c', fact: '1 tool' });
+  f.upsert('tools', { title: 'c', fact: '3 tools' });
+  assert.deepEqual(f.list().map((h) => [h.n, h.kind]), [[1, 'door'], [2, 'metadata'], [3, 'tools']]);
+  assert.equal(f.list()[2].fact, '3 tools', 'upsert replaces, it does not add a frame every poll');
+  f.add({ kind: 'refuse-x' }); f.removeKinds(['metadata']);
+  assert.deepEqual(f.list().map((h) => [h.n, h.kind]), [[1, 'door'], [2, 'tools'], [3, 'refuse-x']], 'renumbered after removal');
+  f.reset(); assert.deepEqual(f.list(), []);
+  const small = createFlow(2); small.add({ kind: 'a' }); small.add({ kind: 'b' }); small.add({ kind: 'c' });
+  assert.deepEqual(small.list().map((h) => h.kind), ['b', 'c'], 'bounded');
+});
+
+test('a sign-in start records the hops in order, for the chat and the reel, and the refusals add two more', async () => {
+  const stub = await stubAs(true, { bodyUris: true });
+  try {
+    await withApp(LAB, async (port) => {
+      assert.deepEqual((await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow, []);
+      await call(port, 'POST', '/api/config', { mcpUrl: `${stub.base}/door/mcp`, clientId: '' }, true);
+      await call(port, 'POST', '/api/auth/start', undefined, true);
+      let flow = (await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow;
+      assert.deepEqual(flow.map((h) => [h.n, h.kind, h.step, h.lane]), [[1, 'doc', 1, 'client'], [2, 'door', 3, 'client'], [3, 'metadata', 3, 'gateway'], [4, 'identity', 3, 'client'], [5, 'signin-start', 3, 'idp']]);
+      assert.equal(flow[1].status, '401');
+      assert.match(flow[2].say, /accept document URLs/);
+      assert.match(flow[3].say, /Nothing to register/);
+      for (const h of flow) assert.ok(h.title && h.fact && h.say && h.status, `hop ${h.kind} has everything the chat and the reel draw`);
+      await call(port, 'POST', '/api/cimd/refusals', undefined, true);
+      flow = (await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow;
+      assert.deepEqual(flow.slice(5).map((h) => [h.kind, h.step, h.status, h.tone]), [['refuse-wrong-redirect', 6, 'Refused 400', 'ok'], ['refuse-not-listed', 6, 'Refused 400', 'ok']]);
+      await call(port, 'POST', '/api/cimd/refusals', undefined, true);
+      assert.equal((await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow.length, 7, 'running the probe again replaces, it does not stack');
+      await call(port, 'POST', '/api/auth/start', undefined, true);
+      assert.equal((await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow.length, 5, 'a new sign-in starts a new run');
+    });
+  } finally {
+    stub.server.close();
+  }
 });

@@ -1,5 +1,5 @@
 import { showJson } from './jsonPane.js';
-import { mountWalkthrough } from './walkthrough.js';
+import { mountFlow } from './flow.js';
 import { isPlaceholderMcpUrl } from './mcpUrlCheck.js';
 
 // Keys that matter in this client's payloads: they stand out in both views of every JSON pane (Rule 24).
@@ -127,7 +127,7 @@ function sameTools(a, b) {
 
 function renderTools(tools) {
   uiState.tools = tools || [];
-  walk.setTools(uiState.tools);
+  flowUi.reload().catch(() => {});
   els.toolSelect.innerHTML = '';
   for (const tool of uiState.tools) {
     const option = document.createElement('option');
@@ -154,7 +154,7 @@ function renderStatus(extra = {}) {
   els.connectionPill.classList.toggle('pill-bad', !uiState.authenticated);
 }
 
-const walk = mountWalkthrough({
+const flowUi = mountFlow({
   api,
   inputs: { mcpUrl: els.mcpUrl, clientId: els.clientId },
   startSignIn: () => startAuth(true),
@@ -171,7 +171,7 @@ async function refreshState() {
   uiState.authenticated = Boolean(state.oauth?.authenticated);
   renderTools(state.tools || []);
   renderStatus({ tokenExpiresAt: state.oauth?.expiresAt || null });
-  await walk.update(state);
+  await flowUi.update(state);
 }
 
 async function saveConfigFromInputs() {
@@ -283,13 +283,6 @@ async function startAuth(sameTab) {
   try {
     await saveConfigFromInputs();
     const data = await api('/api/auth/start', { method: 'POST' });
-    // Say how this client introduced itself: that is the point of CIMD.
-    const how = {
-      cimd: `CIMD: the client_id is this app's own document URL, ${data.clientId}. Nothing was registered.`,
-      dcr: `registered dynamically as ${data.clientId}.`,
-      manual: `using the Client ID you entered, ${data.clientId}.`
-    }[data.clientIdentity] || `client ${data.clientId}.`;
-    appendChat('system', `OAuth started (${how}) ${sameTab ? 'Taking you to sign in; you come back to this page.' : 'Complete login in the opened tab.'}`);
     await refreshState();
     if (sameTab) {
       // Leave a moment so the chat line and step 3 can be read before the page changes.

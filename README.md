@@ -100,20 +100,26 @@ With a Privilege gateway, an admin must list that document URL under Settings, M
 
 Set `SETUP_GUIDE_URL` (an https address) to show a **Setup guide** link in the top menu; unset, there is no link.
 
-**CIMD walkthrough.** The top of the page is one numbered walkthrough in six steps: the client's own document, pointing at a
-gateway, signing in (in the same tab, so you come back to this page), what the gateway did, the token and tools, and what
-the gateway refuses. It reads `/api/state` (which now says how the client identified itself, and the document URL), the
-document at `/client.json`, and one probe, `POST /api/cimd/refusals`, which sends two requests that must fail (a wrong
-return address, and a document that is not on the list) to the configured gateway's authorize endpoint and shows its
-answers. The probe never signs in and does not follow redirects. The step 3 button signs in in this tab; the Sign In button
-in the Connection panel still opens a new tab.
+**The run as a chat and a vertical movie reel.** Under the title, six numbered steps show how far the run has got. The centre
+panel is a chat in which the demo client, the Privilege gateway, PingOne and the MCP server each speak as themselves, and the
+right panel is a movie reel stood on its end: one frame per hop with its actors, a short title, one fact and a status word.
+Run replays the reel while the matching chat messages light up and the rest fade. Both are drawn from one list of hops that the
+server keeps (`flow.js`, returned as `flow` by `/api/state`), so they survive the sign-in redirect and a reload. The hops are
+what the client itself saw: the gateway's inner checks are only ever stated as what its answer implies (it issued a code, so the
+document passed). The raw relay dump is still there, folded under "Raw events". Signing in from the chat goes to the gateway in
+the same tab and comes back to this page; the Sign In button in the Connection panel still opens a new tab.
+`POST /api/cimd/refusals` sends two requests that must fail (a wrong return address, and a document that is not on the list) to
+the configured gateway's authorize endpoint and adds what it answered to the run. It never signs in and does not follow
+redirects. The page stays quiet until a real MCP URL is set: the shipped placeholder is on the reserved `.invalid` domain and is
+never asked for anything.
 
 ## Files
 
 | File | Purpose |
 |---|---|
 | `server.js` | OAuth, MCP relay, chat, LLM routing |
-| `public/walkthrough.js` | The numbered CIMD walkthrough at the top of the page |
+| `public/flow.js` | The chat and the vertical movie reel, drawn from the server's record of the run |
+| `flow.js` | The server's record of the run: one hop per arrow, bounded, one hop per kind where polled |
 | `cimd.js` | The client's CIMD document and the "does this server accept one" test |
 | `public/index.html` | UI layout |
 | `public/app.js` | Chat, auto-refresh, tool rendering |
