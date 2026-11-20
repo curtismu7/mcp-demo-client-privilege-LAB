@@ -17,10 +17,10 @@
   </head>
   <body>
     <header class="shell-bar">
-      <span class="shell-brand"><span class="shell-logo">M</span> MCP Privilege Demo Chat</span>
+      <span class="shell-brand">MCP Privilege Demo Chat</span>
         <!-- ui-pattern: allow P2 the banner is static in the markup but app.js paints it from /api/info on load and on every Mock/Real switch (it states the current mode at runtime) -->
       <p class="banner" role="note" id="modeBanner" data-state="mock">
-        SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.
+        MOCK mode: only the chat model is simulated. Sign-in, tokens and MCP calls go to whatever MCP URL you configure, and are real when that is a real gateway (the default is a .invalid host, so nothing is contacted until you set one). Everything is shown as it happens.
       </p>
       <div class="pill" id="connectionPill">Disconnected</div>
       <nav class="top-menu top-menu--framed" data-testid="top-menu" aria-label="Top menu">
@@ -91,8 +91,8 @@
           if (banner) {
             banner.dataset.state = real ? "live" : "mock";
             banner.textContent = real
-              ? "REAL mode: the model call is routed through the Privilege LLM lane and governed by its policy. The MCP endpoint is still whatever you configure."
-              : "SIMULATED, MOCK mode: this client talks to whatever MCP URL you configure (default is a .invalid host). Sign-in, tokens and tool calls are shown as they happen; nothing is stored and no tenant is contacted until you point it at one.";
+              ? "REAL mode: the chat model call is routed through the Privilege LLM lane and governed by its policy. Sign-in and MCP calls go to whatever MCP URL you configure."
+              : "MOCK mode: only the chat model is simulated. Sign-in, tokens and MCP calls go to whatever MCP URL you configure, and are real when that is a real gateway (the default is a .invalid host, so nothing is contacted until you set one). Everything is shown as it happens.";
           }
         }
         fetch("/api/info").then(function (r) { return r.json(); }).then(paint).catch(function () {});
