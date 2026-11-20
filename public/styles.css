@@ -55,10 +55,11 @@ body {
   background: var(--box-dark);
   color: var(--on-box);
   border-bottom: 3px solid transparent;
-  border-image: var(--accent-gradient) 1;
+  border-image: linear-gradient(90deg, var(--select-fill) 55%, var(--select)) 1;
 }
 
 .shell-bar .banner {
+  border-color: var(--select);
   flex: 1 1 320px;
   margin: 0;
   font-size: 1rem;
@@ -306,7 +307,7 @@ details summary {
 .banner {
   padding: 8px 12px;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent, var(--focus));
+  border-left: 3px solid var(--select);
   border-radius: 8px;
   background: var(--panel);
   color: var(--text);
@@ -343,13 +344,13 @@ details summary {
 .stepper ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .5rem; }
 .stepper li { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: .55rem; align-items: center; border: 1px solid var(--border); border-top: 4px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); padding: .55rem .7rem; min-width: 0; }
 .stepper li.done { border-top-color: var(--status-ok); }
-.stepper li.cur { border-top-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-.st-n { grid-row: 1 / span 2; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.stepper li.cur { border-top-color: var(--select); box-shadow: 0 0 0 2px var(--select); }
+.st-n { grid-row: 1 / span 2; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%; background: var(--select-fill); color: var(--on-accent); font-weight: 700; }
 .stepper li.done .st-n { background: var(--status-ok); }
 .st-t { font-weight: 600; font-size: .95rem; line-height: 1.25; }
 .st-state { font-size: .8rem; color: var(--muted); font-weight: 700; }
 .stepper li.done .st-state { color: var(--status-ok); }
-.stepper li.cur .st-state { color: var(--accent); }
+.stepper li.cur .st-state { color: var(--select); }
 @media (max-width: 1100px) { .stepper ol { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* One scroller holds the flow chat and the older system bubbles. */
@@ -358,11 +359,11 @@ details summary {
 .flowChat { display: grid; gap: 12px; }
 .flow-msg { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: .65rem; }
 .flow-msg.faded { opacity: .4; }
-.flow-msg.sel .flow-bub { outline: 2px solid var(--accent); outline-offset: 2px; }
+.flow-msg.sel .flow-bub { outline: 2px solid var(--select); outline-offset: 2px; }
 .flow-av { width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: var(--box-dark); background: var(--c); }
 .flow-bub { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: .6rem .8rem; font-size: 1rem; line-height: 1.45; min-width: 0; overflow-wrap: anywhere; }
 .flow-who { display: flex; align-items: center; gap: .5rem; font-size: .85rem; font-weight: 700; color: var(--c); margin-bottom: .15rem; }
-.flow-sn { display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: .75rem; }
+.flow-sn { display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--select-fill); color: var(--on-accent); font-size: .75rem; }
 .flow-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .45rem; }
 .flow-chip { display: inline-block; padding: .05rem .55rem; border-radius: 999px; border: 1px solid var(--border); font-size: .78rem; font-weight: 700; color: var(--muted); }
 .flow-chip--ok { color: var(--status-ok); border-color: var(--status-ok); }
@@ -381,10 +382,10 @@ details summary {
 .frm-top { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; font-size: .8rem; font-weight: 700; color: var(--c); }
 .frm-no { display: inline-grid; place-items: center; min-width: 1.3rem; height: 1.3rem; border-radius: 4px; background: var(--c); color: var(--box-dark); font-size: .75rem; }
 .frm-ttl { font-weight: 600; } .frm-fact { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
-.frm.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
-.frm.now { outline: 3px solid var(--accent); outline-offset: 2px; }
+.frm.sel { outline: 2px solid var(--select); outline-offset: 2px; }
+.frm.now { outline: 3px solid var(--select); outline-offset: 2px; }
 .frm.next { opacity: .45; }
-.frm-now { margin-left: auto; background: var(--accent); color: var(--on-accent); border-radius: 999px; padding: 0 .55rem; font-size: .75rem; }
+.frm-now { margin-left: auto; background: var(--select-fill); color: var(--on-accent); border-radius: 999px; padding: 0 .55rem; font-size: .75rem; }
 .frm-down { height: 16px; position: relative; }
 .frm-down::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 4px; width: 2px; background: var(--border); }
 .frm-down::after { content: ""; position: absolute; left: calc(50% - 4px); bottom: 0; border: 5px solid transparent; border-top: 7px solid var(--border); border-bottom: 0; }
@@ -394,7 +395,7 @@ details.raw { margin-top: .8rem; } details.raw summary { cursor: pointer; font-w
 
 /* The pop-out box: the real API call behind a hop. */
 .flow-msg.has-detail { cursor: pointer; }
-.flow-msg.has-detail:hover .flow-bub { border-color: var(--accent); }
+.flow-msg.has-detail:hover .flow-bub { border-color: var(--select); }
 /* The hop detail is a FloatingDialog (§8d): geometry, drag, resize and the narrow-screen sheet come from
    floating-dialog.css and floatingPanel.js (custom properties --fd-x/y/w/h). The lab keeps only its own
    lane colour and body padding. */
@@ -430,3 +431,7 @@ details.chat-model > summary { cursor: pointer; font-weight: 700; font-size: .9r
 .jform__row[data-hot="true"] { border-left-color: var(--status-info); }
 .jform__chips[data-hot="true"] .jform__chip { border-color: var(--status-info); }
 .jsonbox__toggle button[aria-pressed="true"] { background: var(--status-info); border-color: var(--status-info); color: var(--box-dark); }
+
+/* Selection and progress read blue (owner); Ping Red stays for the Sign in button and for real errors. --select is for
+   outlines and text on the page (8:1 on the surface, light and dark); --select-fill is for badges with a white label. */
+:root { --select: var(--status-info); --select-fill: #12538d; }
