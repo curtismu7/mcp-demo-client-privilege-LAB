@@ -3,6 +3,7 @@
 // goes in as text. Nothing here talks to a gateway except the one refusals probe.
 import { isPlaceholderMcpUrl } from './mcpUrlCheck.js';
 import { showJson } from './jsonPane.js';
+import { floatingPanel } from './floatingPanel.js';
 
 const LANES = {
   client: { name: 'Demo client', letter: 'C', token: '--lane-browser' },
@@ -87,23 +88,37 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
   }
 
   // The pop-out box: the real API call behind a hop (request, response), opened from a frame or a message.
+  // A FloatingDialog (STANDALONE-UI-PATTERNS §8d): drag by the title bar, resize from 8 edges and corners,
+  // keyboard move (arrows, Shift = farther) and resize (Alt + arrows), position and size remembered, Escape
+  // closes. Behaviour from public/floatingPanel.js; markup and classes from shared floating-dialog. No
+  // backdrop: it floats beside the page (the run keeps playing under it).
   let detailEl = null;
-  function closeDetail() { detailEl?.remove(); detailEl = null; }
+  let detailPanel = null;
+  function closeDetail() {
+    detailPanel?.close();
+    detailEl?.remove();
+    detailEl = null;
+    detailPanel = null;
+  }
   function openDetail(h) {
     closeDetail();
     const l = lane(h);
-    const box = el('aside', { class: 'flow-detail', role: 'dialog', 'aria-label': `Detail of frame ${h.n}: ${h.title}` });
+    const box = el('aside', { class: 'fd-panel flow-detail', role: 'dialog', 'aria-label': `Detail of frame ${h.n}: ${h.title}` });
     box.style.setProperty('--c', `var(${l.token})`);
-    const close = el('button', { type: 'button', class: 'flow-btn flow-detail-close', text: 'Close' });
-    close.addEventListener('click', closeDetail);
-    box.append(el('div', { class: 'flow-detail-head' },
-      el('span', { class: 'frm-no', text: String(h.n) }),
-      el('div', { class: 'flow-detail-ttl' }, el('div', { class: 'flow-detail-from', text: `${h.from === h.to ? h.from : `${h.from} → ${h.to}`} · step ${h.step}` }), el('div', { text: h.title })),
-      close));
-    box.append(el('p', { class: 'flow-detail-say', text: h.say }));
+    const titlebar = el('div', { class: 'fd-titlebar' },
+      el('span', { class: 'fd-title' },
+        el('span', { class: 'frm-no', text: String(h.n) }),
+        el('span', { class: 'flow-detail-ttl' },
+          el('div', { class: 'flow-detail-from', text: `${h.from === h.to ? h.from : `${h.from} → ${h.to}`} · step ${h.step}` }),
+          el('div', { text: h.title }))),
+      el('button', { type: 'button', class: 'fd-btn flow-detail-close', 'aria-label': 'Close', title: 'Close', text: '×' }));
+    box.append(titlebar);
+    const body = el('div', { class: 'fd-body' });
+    box.append(body);
+    body.append(el('p', { class: 'flow-detail-say', text: h.say }));
     const d = h.detail;
     if (!d) {
-      box.append(el('p', { class: 'flow-empty', text: 'This hop is a decision, not an API call, so there is no request or response to show.' }));
+      body.append(el('p', { class: 'flow-empty', text: 'This hop is a decision, not an API call, so there is no request or response to show.' }));
     } else {
       if (d.request) {
         const sec = el('section', { class: 'flow-sec' }, el('h3', { text: 'Request' }), el('div', { class: 'flow-call' }, el('span', { class: 'flow-method', text: d.request.method }), el('code', { text: d.request.url })));
@@ -111,7 +126,7 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
         if (d.request.headers) extra.headers = d.request.headers;
         if (d.request.body) extra.body = d.request.body;
         if (Object.keys(extra).length) { const pane = el('div', { class: 'flow-pane' }); sec.append(pane); showJson(pane, extra, { label: 'Request details', hot: HOT }); }
-        box.append(sec);
+        body.append(sec);
       }
       if (d.response) {
         const ok = d.response.status >= 200 && d.response.status < 300;
@@ -121,14 +136,14 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
         if (d.response.headers && Object.values(d.response.headers).some(Boolean)) shown.headers = d.response.headers;
         shown.body = d.response.body ?? null;
         showJson(pane, shown, { label: 'Response', hot: HOT });
-        box.append(sec);
+        body.append(sec);
       }
-      if (d.note) box.append(el('p', { class: 'flow-detail-say', text: d.note }));
+      if (d.note) body.append(el('p', { class: 'flow-detail-say', text: d.note }));
     }
     document.body.append(box);
     detailEl = box;
+    detailPanel = floatingPanel(box, { storageKey: 'mcpdemo.flowDetail', onClose: closeDetail });
   }
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
 
   function renderChat() {
     const list = hops();
