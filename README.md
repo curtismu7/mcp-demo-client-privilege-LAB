@@ -106,7 +106,7 @@ right panel is a movie reel stood on its end: one frame per hop with its actors,
 Run replays the reel while the matching chat messages light up and the rest fade. Both are drawn from one list of hops that the
 server keeps (`flow.js`, returned as `flow` by `/api/state`), so they survive the sign-in redirect and a reload. The hops are
 what the client itself saw: the gateway's inner checks are only ever stated as what its answer implies (it issued a code, so the
-document passed). The raw relay dump is still there, folded under "Raw events". Signing in from the chat goes to the gateway in
+document passed). Every hop that is a real API call carries its request and response (the door's 401, both `.well-known` metadata calls, the sign-in link, the token exchange with tokens and codes redacted, the tools list, the refusals): click a frame or a message to open it in a pop-out box, with the important keys highlighted. The raw relay dump is still there, folded under "Raw events". Signing in from the chat goes to the gateway in
 the same tab and comes back to this page; the Sign In button in the Connection panel still opens a new tab.
 `POST /api/cimd/refusals` sends two requests that must fail (a wrong return address, and a document that is not on the list) to
 the configured gateway's authorize endpoint and adds what it answered to the run. It never signs in and does not follow

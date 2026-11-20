@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { cimdClientIdUrl, clientDocument, serverSupportsCimd, setupGuideUrl } from './cimd.js';
 import { labAllowedHosts } from './safety.js';
-import { createFlow } from './flow.js';
+import { createFlow, redactBody } from './flow.js';
 import { isPlaceholderMcpUrl } from './public/mcpUrlCheck.js';
 
 // Example names only (.example); the real lab name lives in docker-compose.yml.
@@ -382,20 +382,67 @@ test('a sign-in start records the hops in order, for the chat and the reel, and 
       await call(port, 'POST', '/api/config', { mcpUrl: `${stub.base}/door/mcp`, clientId: '' }, true);
       await call(port, 'POST', '/api/auth/start', undefined, true);
       let flow = (await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow;
-      assert.deepEqual(flow.map((h) => [h.n, h.kind, h.step, h.lane]), [[1, 'doc', 1, 'client'], [2, 'door', 3, 'client'], [3, 'metadata', 3, 'gateway'], [4, 'identity', 3, 'client'], [5, 'signin-start', 3, 'idp']]);
+      assert.deepEqual(flow.map((h) => [h.n, h.kind, h.step, h.lane]), [[1, 'doc', 1, 'client'], [2, 'door', 3, 'client'], [3, 'resource-metadata', 3, 'gateway'], [4, 'as-metadata', 3, 'gateway'], [5, 'identity', 3, 'client'], [6, 'signin-start', 3, 'idp']]);
       assert.equal(flow[1].status, '401');
-      assert.match(flow[2].say, /accept document URLs/);
-      assert.match(flow[3].say, /Nothing to register/);
+      assert.match(flow[3].say, /accepts a document URL as client ID/);
+      assert.match(flow[4].say, /Nothing to register/);
       for (const h of flow) assert.ok(h.title && h.fact && h.say && h.status, `hop ${h.kind} has everything the chat and the reel draw`);
       await call(port, 'POST', '/api/cimd/refusals', undefined, true);
       flow = (await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow;
-      assert.deepEqual(flow.slice(5).map((h) => [h.kind, h.step, h.status, h.tone]), [['refuse-wrong-redirect', 6, 'Refused 400', 'ok'], ['refuse-not-listed', 6, 'Refused 400', 'ok']]);
+      assert.deepEqual(flow.slice(6).map((h) => [h.kind, h.step, h.status, h.tone]), [['refuse-wrong-redirect', 6, 'Refused 400', 'ok'], ['refuse-not-listed', 6, 'Refused 400', 'ok']]);
       await call(port, 'POST', '/api/cimd/refusals', undefined, true);
-      assert.equal((await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow.length, 7, 'running the probe again replaces, it does not stack');
+      assert.equal((await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow.length, 8, 'running the probe again replaces, it does not stack');
       await call(port, 'POST', '/api/auth/start', undefined, true);
-      assert.equal((await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow.length, 5, 'a new sign-in starts a new run');
+      assert.equal((await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow.length, 6, 'a new sign-in starts a new run');
     });
   } finally {
     stub.server.close();
   }
+});
+
+test('every API-call hop carries its real request and response for the pop-out box', async () => {
+  const stub = await stubAs(true, { bodyUris: true });
+  try {
+    await withApp(LAB, async (port) => {
+      await call(port, 'POST', '/api/config', { mcpUrl: `${stub.base}/door/mcp`, clientId: '' }, true);
+      await call(port, 'POST', '/api/auth/start', undefined, true);
+      const flow = (await (await call(port, 'GET', '/api/state', undefined, true)).json()).flow;
+      const by = (k) => flow.find((h) => h.kind === k);
+      const door = by('door').detail;
+      assert.equal(door.request.method, 'GET'); assert.equal(door.response.status, 401);
+      assert.match(door.response.headers['www-authenticate'], /resource_metadata=/);
+      const rm = by('resource-metadata').detail;
+      assert.match(rm.request.url, /\/rm$/); assert.deepEqual(rm.response.body.authorization_servers, [`${stub.base}/as`]);
+      const as = by('as-metadata').detail;
+      assert.match(as.request.url, /\/\.well-known\/oauth-authorization-server$/);
+      assert.equal(as.response.body.client_id_metadata_document_supported, true, 'the .well-known response is the one the server really sent');
+      assert.match(by('as-metadata').fact, /GET .*\.well-known\/oauth-authorization-server\s+→\s+200/);
+      const start = by('signin-start').detail;
+      assert.equal(start.request.body.client_id, 'https://lab.example/client.json');
+      assert.equal(start.request.body.redirect_uri, 'https://lab.example/auth/callback');
+      assert.equal(by('doc').detail.response.body.client_id, 'https://lab.example/client.json');
+      for (const h of flow.filter((x) => ['door', 'resource-metadata', 'as-metadata', 'signin-start', 'doc'].includes(x.kind))) {
+        assert.ok(h.detail?.request?.method && h.detail.request.url, `${h.kind} shows the request`);
+      }
+    });
+  } finally {
+    stub.server.close();
+  }
+});
+
+test('tokens, codes, secrets and verifiers are redacted before anything is stored on a hop', () => {
+  const r = redactBody({ access_token: 'abc', refresh_token: 'def', id_token: 'ghi', token_type: 'Bearer', expires_in: 3600, scope: 'openid', code: 'c1', code_verifier: 'v1', client_secret: 's', client_id: 'x', redirect_uri: 'https://a.example/cb', nested: { password: 'p', keep: 1 }, list: [{ refresh_token: 'z' }] });
+  assert.deepEqual(r, { access_token: '[redacted]', refresh_token: '[redacted]', id_token: '[redacted]', token_type: 'Bearer', expires_in: 3600, scope: 'openid', code: '[redacted]', code_verifier: '[redacted]', client_secret: '[redacted]', client_id: 'x', redirect_uri: 'https://a.example/cb', nested: { password: '[redacted]', keep: 1 }, list: [{ refresh_token: '[redacted]' }] });
+});
+
+test('the page polls for tools only once signed in, so a half-typed MCP address is never tried', async () => {
+  await withApp('', async (port) => {
+    const js = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port, path: '/app.js', headers: { host: `127.0.0.1:${port}` } }, (res) => {
+        let t = ''; res.on('data', (d) => { t += d; }); res.on('end', () => resolve(t));
+      }).on('error', reject);
+    });
+    assert.match(js, /if \(!uiState\.authenticated\) return;/);
+    assert.match(js, /isPlaceholderMcpUrl\(els\.mcpUrl\.value\)/);
+  });
 });

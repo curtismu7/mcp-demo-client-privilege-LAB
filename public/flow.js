@@ -2,6 +2,7 @@
 // survives the sign-in redirect and a reload. Chat messages and reel frames are the same hops. All text from servers
 // goes in as text. Nothing here talks to a gateway except the one refusals probe.
 import { isPlaceholderMcpUrl } from './mcpUrlCheck.js';
+import { showJson } from './jsonPane.js';
 
 const LANES = {
   client: { name: 'Demo client', letter: 'C', token: '--lane-browser' },
@@ -9,6 +10,8 @@ const LANES = {
   idp: { name: 'PingOne', letter: 'P', token: '--lane-idp' },
   mcp: { name: 'MCP server', letter: 'M', token: '--lane-mcp' }
 };
+// Keys that matter in the API calls: they stand out in both views of the detail box.
+const HOT = ['client_id_metadata_document_supported', 'authorization_servers', 'authorization_endpoint', 'token_endpoint', 'registration_endpoint', 'token_endpoint_auth_methods_supported', 'www-authenticate', 'redirect_uris', 'client_id', 'tools'];
 const SPEEDS = [{ ms: 900, label: 'Fast' }, { ms: 1800, label: 'Steady' }, { ms: 3200, label: 'Slow' }];
 
 function el(tag, props = {}, ...kids) {
@@ -54,6 +57,7 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
     who.style.setProperty('--c', `var(${l.token})`);
     const chips = el('div', { class: 'flow-row' }, chip(h.status, h.tone));
     row.append(av, el('div', { class: 'flow-bub' }, who, el('div', { text: h.say }), chips));
+    if (h.detail) { row.classList.add('has-detail'); chips.append(chip('API call: click to open', 'plain')); row.addEventListener('click', () => openDetail(h)); }
     return row;
   }
 
@@ -81,6 +85,50 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
     try { await api('/api/cimd/refusals', { method: 'POST' }); } catch { /* the probe's own error shows as no frames */ }
     await reload();
   }
+
+  // The pop-out box: the real API call behind a hop (request, response), opened from a frame or a message.
+  let detailEl = null;
+  function closeDetail() { detailEl?.remove(); detailEl = null; }
+  function openDetail(h) {
+    closeDetail();
+    const l = lane(h);
+    const box = el('aside', { class: 'flow-detail', role: 'dialog', 'aria-label': `Detail of frame ${h.n}: ${h.title}` });
+    box.style.setProperty('--c', `var(${l.token})`);
+    const close = el('button', { type: 'button', class: 'flow-btn flow-detail-close', text: 'Close' });
+    close.addEventListener('click', closeDetail);
+    box.append(el('div', { class: 'flow-detail-head' },
+      el('span', { class: 'frm-no', text: String(h.n) }),
+      el('div', { class: 'flow-detail-ttl' }, el('div', { class: 'flow-detail-from', text: `${h.from === h.to ? h.from : `${h.from} → ${h.to}`} · step ${h.step}` }), el('div', { text: h.title })),
+      close));
+    box.append(el('p', { class: 'flow-detail-say', text: h.say }));
+    const d = h.detail;
+    if (!d) {
+      box.append(el('p', { class: 'flow-empty', text: 'This hop is a decision, not an API call, so there is no request or response to show.' }));
+    } else {
+      if (d.request) {
+        const sec = el('section', { class: 'flow-sec' }, el('h3', { text: 'Request' }), el('div', { class: 'flow-call' }, el('span', { class: 'flow-method', text: d.request.method }), el('code', { text: d.request.url })));
+        const extra = {};
+        if (d.request.headers) extra.headers = d.request.headers;
+        if (d.request.body) extra.body = d.request.body;
+        if (Object.keys(extra).length) { const pane = el('div', { class: 'flow-pane' }); sec.append(pane); showJson(pane, extra, { label: 'Request details', hot: HOT }); }
+        box.append(sec);
+      }
+      if (d.response) {
+        const ok = d.response.status >= 200 && d.response.status < 300;
+        const sec = el('section', { class: 'flow-sec' }, el('h3', { text: 'Response' }), el('div', { class: 'flow-row' }, chip(`HTTP ${d.response.status ?? '?'}`, ok ? 'ok' : d.response.status >= 400 ? 'warn' : 'plain')));
+        const pane = el('div', { class: 'flow-pane' }); sec.append(pane);
+        const shown = {};
+        if (d.response.headers && Object.values(d.response.headers).some(Boolean)) shown.headers = d.response.headers;
+        shown.body = d.response.body ?? null;
+        showJson(pane, shown, { label: 'Response', hot: HOT });
+        box.append(sec);
+      }
+      if (d.note) box.append(el('p', { class: 'flow-detail-say', text: d.note }));
+    }
+    document.body.append(box);
+    detailEl = box;
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
 
   function renderChat() {
     const list = hops();
@@ -122,7 +170,7 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
       const top = el('div', { class: 'frm-top' }, el('span', { class: 'frm-no', text: String(h.n) }), el('span', { text: h.from === h.to ? h.from : `${h.from} → ${h.to}` }), chip(`step ${h.step}`), chip(h.status, h.tone));
       if (now) top.append(el('span', { class: 'frm-now', text: 'Now playing' }));
       frame.append(top, el('div', { class: 'frm-ttl', text: h.title }), el('div', { class: 'frm-fact', text: h.fact }));
-      const pick = () => { selected = h.n; renderedKey = ''; render(); chatEl.querySelector(`[data-n="${h.n}"]`)?.scrollIntoView({ block: 'nearest' }); };
+      const pick = () => { selected = h.n; renderedKey = ''; render(); chatEl.querySelector(`[data-n="${h.n}"]`)?.scrollIntoView({ block: 'nearest' }); openDetail(h); };
       frame.addEventListener('click', pick);
       frame.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
       kids.push(frame);
@@ -195,6 +243,8 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
 
   return {
     update(state) { last = state; render(); },
+    openKind(kind) { const h = hops().find((x) => x.kind === kind); if (h) { selected = h.n; renderedKey = ''; render(); openDetail(h); } },
+    closeDetail,
     reload
   };
 }
