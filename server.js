@@ -8,6 +8,7 @@ import { shelfInfo } from './shelfLink.js';
 import { hostAllowed, isLoopbackName, labAllowedHosts, parseHost, writeAllowed } from './safety.js';
 import { gatewayMcpUrl } from './mcpUrl.js';
 import { cimdClientIdUrl, clientDocument, serverSupportsCimd, setupGuideUrl } from './cimd.js';
+import { createFlow } from './flow.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 // LLM_API_KEY wins; HOSTED_LLM_VIRTUAL_KEY (the shared settings file's name for the hosted
@@ -18,6 +19,8 @@ const PORT = Number(process.env.PORT) || 6884;
 const STATIC_DIR = path.resolve('public');
 // The lab-proxy's Host name(s) for this lab (compose sets it); loopback always works.
 const LAB_HOSTS = labAllowedHosts(process.env.LAB_ALLOWED_HOSTS);
+
+const flow = createFlow();
 
 const state = {
   config: {
@@ -361,6 +364,7 @@ async function dynamicallyRegister(registrationUri, redirectUri) {
 
 async function discoverAuth() {
   const response = await fetch(state.config.mcpUrl, { method: 'GET' });
+  const doorStatus = response.status;
   const bodyText = await response.text();
   let body;
   try {
@@ -381,11 +385,11 @@ async function discoverAuth() {
     // from the body are still enough to sign in with a Client ID you typed.
     try {
       const viaResource = await discoverResourceMetadata(response, state.config.mcpUrl);
-      if (viaResource) return viaResource;
+      if (viaResource) return { ...viaResource, doorStatus };
     } catch {
       // Fall back to the endpoints in the body.
     }
-    return { authorizationUri, tokenUri };
+    return { authorizationUri, tokenUri, doorStatus };
   }
 
   // RFC 9728 resource-metadata discovery: from the 401's WWW-Authenticate when present,
@@ -400,7 +404,7 @@ async function discoverAuth() {
       const probe = { headers: response.headers, status: 401 };
       viaResource = await discoverResourceMetadata(probe, state.config.mcpUrl);
     }
-    if (viaResource) return viaResource;
+    if (viaResource) return { ...viaResource, doorStatus };
   } catch {
     // Fall through to the PingOne hosted pattern below.
   }
@@ -420,7 +424,8 @@ async function discoverAuth() {
         if (meta.authorization_endpoint && meta.token_endpoint) {
           return {
             authorizationUri: meta.authorization_endpoint,
-            tokenUri: meta.token_endpoint
+            tokenUri: meta.token_endpoint,
+            doorStatus
           };
         }
       }
@@ -434,6 +439,24 @@ async function discoverAuth() {
   );
 }
 
+// The hops of one sign-in attempt, as far as the client can tell. A new attempt starts a new run.
+function recordSignInStart({ documentUrl, doorStatus, cimdSupported, clientIdentity, redirectUri, authorizationUri }) {
+  flow.reset();
+  const door = new URL(state.config.mcpUrl);
+  const ident = {
+    cimd: ['Uses its own document as client_id', 'nothing registered', `I will identify myself with my own document: ${state.config.clientId}. Nothing to register.`],
+    dcr: ['Registers with the server', 'a new client record was created', `The server did not accept a document URL, so I registered and got the ID ${state.config.clientId}.`],
+    manual: ['Uses the Client ID it was given', 'no document, no registration', `Using the Client ID you entered: ${state.config.clientId}.`]
+  }[clientIdentity] || ['Identifies itself', '', ''];
+  if (documentUrl) {
+    flow.add({ kind: 'doc', lane: 'client', from: 'Client', to: 'Client', step: 1, title: "Publishes its ID card", fact: `client_id is ${documentUrl}`, status: 'OK', tone: 'ok', say: "My client ID is the address of this file. I register nothing." });
+  }
+  flow.add({ kind: 'door', lane: 'client', from: 'Client', to: 'Gateway', step: 3, title: 'Calls the door with no token', fact: `GET ${door.host}${door.pathname}`, status: String(doorStatus || 401), tone: 'warn', say: 'Calling the door with no token.' });
+  flow.add({ kind: 'metadata', lane: 'gateway', from: 'Gateway', to: 'Client', step: 3, title: 'Answers with sign-in metadata', fact: cimdSupported ? 'accepts document URLs as client ID' : 'does not accept document URLs', status: 'OK', tone: cimdSupported ? 'ok' : 'warn', say: cimdSupported ? '401. Sign in at /authorize. I accept document URLs as client ID.' : '401. Sign in at /authorize. I do not accept document URLs.' });
+  flow.add({ kind: 'identity', lane: 'client', from: 'Client', to: 'Gateway', step: 3, title: ident[0], fact: ident[1], status: 'OK', tone: 'ok', say: ident[2] });
+  flow.add({ kind: 'signin-start', lane: 'idp', from: 'Client', to: 'PingOne', step: 3, title: 'Sent to sign in', fact: `via ${new URL(authorizationUri).host}, return to ${new URL(redirectUri).pathname}`, status: 'OK', tone: 'ok', say: 'Sending you to sign in. PingOne will ask for demouser and an MFA approval.' });
+}
+
 async function handleStartAuth(req, res) {
   try {
     // Behind an ingress or the lab-proxy, the browser's own address is the right redirect (https on the
@@ -442,7 +465,7 @@ async function handleStartAuth(req, res) {
     const redirectUri = incoming && !isLoopbackName(incoming.name) && incoming.name === [...LAB_HOSTS][0]
       ? `https://${incoming.name}/auth/callback`
       : `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST}:${PORT}/auth/callback`;
-    const { authorizationUri, tokenUri, registrationUri, cimdSupported, scopes } = await discoverAuth();
+    const { authorizationUri, tokenUri, registrationUri, cimdSupported, scopes, doorStatus } = await discoverAuth();
     // No client id set? Prefer CIMD: when the server accepts a client metadata document and this build
     // has a public address, the client_id is the URL of our own /client.json and nothing is registered.
     // Otherwise register with the server's RFC 7591 endpoint when it offers one (the SkyHigh Airline
@@ -470,6 +493,7 @@ async function handleStartAuth(req, res) {
       clientIdentity = 'cimd';
     }
     state.walk = { discovered: true, serverCimd: Boolean(cimdSupported), identity: clientIdentity, redirectUri };
+    recordSignInStart({ documentUrl, doorStatus, cimdSupported, clientIdentity, redirectUri, authorizationUri });
     const verifier = randomString(48);
     const challenge = sha256Base64Url(verifier);
     const oauthState = randomString(24);
@@ -533,6 +557,10 @@ async function handleCimdRefusals(req, res) {
       const r = await fetch(u, { redirect: 'manual' });
       const text = (await r.text()).replace(/<(style|script)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240);
       results.push({ id: probe.id, label: probe.label, clientId: probe.clientId, redirectUri: probe.redirectUri, status: r.status, refused: r.status >= 400, message: text });
+    }
+    flow.removeKinds(['refuse-wrong-redirect', 'refuse-not-listed']);
+    for (const r of results) {
+      flow.add({ kind: `refuse-${r.id}`, lane: 'gateway', from: 'Gateway', to: 'Client', step: 6, title: r.id === 'wrong-redirect' ? 'Refuses a wrong return address' : 'Refuses a document that is not listed', fact: r.message || `HTTP ${r.status}`, status: r.refused ? `Refused ${r.status}` : `NOT refused ${r.status}`, tone: r.refused ? 'ok' : 'bad', say: r.refused ? `Refused (HTTP ${r.status}): ${r.label.toLowerCase()}. ${r.message}` : `NOT refused (HTTP ${r.status}): ${r.label.toLowerCase()}.` });
     }
     json(res, 200, { results });
   } catch (error) {
@@ -605,6 +633,9 @@ async function handleAuthCallback(req, res, parsedUrl) {
       expiresIn: tokenData.expires_in || null
     });
 
+    flow.upsert('accepted', { lane: 'gateway', from: 'Gateway', to: 'Client', step: 4, title: 'Accepts the document and signs the user in', fact: 'it issued a code, so the document passed its checks', status: 'OK', tone: 'ok', say: 'Signed in. I issued a code, so the document passed my checks: it is on the approved list and the return address matches.' });
+    flow.upsert('token', { lane: 'client', from: 'Client', to: 'Gateway', step: 5, title: 'Swaps the code for a token', fact: 'PKCE, no client secret', status: 'OK', tone: 'ok', say: 'Swapped the code for a token with PKCE. No client secret was involved.' });
+
     res.writeHead(302, { Location: '/?auth=success' });
     res.end();
   } catch (error) {
@@ -635,6 +666,7 @@ async function handleListTools(req, res) {
       }
     }
     state.tools = data.result?.tools || [];
+    flow.upsert('tools', { lane: 'mcp', from: 'Client', to: 'MCP server', step: 5, title: 'Lists the tools', fact: `${state.tools.length} ${state.tools.length === 1 ? 'tool' : 'tools'} returned`, status: 'OK', tone: 'ok', say: state.tools.length ? `Tools: ${state.tools.map((t) => t.name).join(', ')}.` : 'The server returned no tools.' });
     json(res, 200, { tools: state.tools });
   } catch (error) {
     resetMcpRuntimeState();
@@ -954,6 +986,7 @@ const server = http.createServer(async (req, res) => {
       },
       tools: state.tools,
       walk: state.walk,
+      flow: flow.list(),
       cimdDocumentUrl: cimdClientIdUrl(LAB_HOSTS)
     });
     return;

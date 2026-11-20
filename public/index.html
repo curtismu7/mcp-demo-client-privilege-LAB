@@ -110,50 +110,23 @@
       })();
     </script>
 
-    <section class="walk frame" aria-labelledby="walkTitle">
-      <p class="section-label" id="walkTitle">CIMD walkthrough: sign in with a document URL, in six steps</p>
-      <ol class="walk-steps">
-        <li class="walk-step" id="walk-1">
-          <span class="walk-n" aria-hidden="true">1</span>
-          <h2>The client's document</h2>
-          <p class="walk-lead">Instead of registering, this app publishes a small JSON file. The address of the file is its client ID.</p>
-          <div class="walk-body" id="walk1Body"></div>
-        </li>
-        <li class="walk-step" id="walk-2">
-          <span class="walk-n" aria-hidden="true">2</span>
-          <h2>Point it at a gateway</h2>
-          <p class="walk-lead">Give it the MCP address of a gateway door. Leave the OAuth Client ID empty, so the client uses its own document.</p>
-          <div class="walk-body" id="walk2Body"></div>
-        </li>
-        <li class="walk-step" id="walk-3">
-          <span class="walk-n" aria-hidden="true">3</span>
-          <h2>Sign in</h2>
-          <p class="walk-lead">The client asks the door how to sign in. If the door accepts document URLs, the client uses its own. You sign in here, in this tab.</p>
-          <div class="walk-body" id="walk3Body"></div>
-        </li>
-        <li class="walk-step" id="walk-4">
-          <span class="walk-n" aria-hidden="true">4</span>
-          <h2>What the gateway did</h2>
-          <p class="walk-lead">As far as the client can tell, in order.</p>
-          <div class="walk-body" id="walk4Body"></div>
-        </li>
-        <li class="walk-step" id="walk-5">
-          <span class="walk-n" aria-hidden="true">5</span>
-          <h2>Token and tools</h2>
-          <p class="walk-lead">With a token the client can call the MCP server behind the door.</p>
-          <div class="walk-body" id="walk5Body"></div>
-        </li>
-        <li class="walk-step" id="walk-6">
-          <span class="walk-n" aria-hidden="true">6</span>
-          <h2>What the gateway refuses</h2>
-          <p class="walk-lead">Two requests that must fail: a wrong return address, and a document the admin has not listed.</p>
-          <div class="walk-body" id="walk6Body"></div>
-        </li>
-      </ol>
+    <section class="page-intro frame" aria-labelledby="pageTitle">
+      <h1 id="pageTitle">Sign in to a Privilege-protected MCP server with a document URL, not a registration</h1>
+      <p class="page-lead">CIMD (Client ID Metadata Documents): this client identifies itself by the address of a small JSON file it hosts, so nothing is registered. Follow the six steps to run a real sign-in through the Privilege gateway, and see what the gateway checks and what it refuses.</p>
     </section>
 
+    <nav class="stepper frame" aria-label="The six steps">
+      <ol id="stepper">
+        <li><span class="st-n" aria-hidden="true">1</span><span class="st-t">The client's document</span><span class="st-state"></span></li>
+        <li><span class="st-n" aria-hidden="true">2</span><span class="st-t">Point it at a gateway</span><span class="st-state"></span></li>
+        <li><span class="st-n" aria-hidden="true">3</span><span class="st-t">Sign in</span><span class="st-state"></span></li>
+        <li><span class="st-n" aria-hidden="true">4</span><span class="st-t">What the gateway did</span><span class="st-state"></span></li>
+        <li><span class="st-n" aria-hidden="true">5</span><span class="st-t">Token and tools</span><span class="st-state"></span></li>
+        <li><span class="st-n" aria-hidden="true">6</span><span class="st-t">What it refuses</span><span class="st-state"></span></li>
+      </ol>
+    </nav>
+
     <main class="layout frame">
-      <h1 class="visually-hidden">MCP Privilege Demo Chat</h1>
       <aside class="panel sidebar">
         <h2>Connection</h2>
         <label>
@@ -192,7 +165,10 @@
       </aside>
 
       <section class="panel chatPanel">
-        <div id="chatMessages" class="chatMessages" aria-live="polite"></div>
+        <div class="chatScroll">
+          <div id="flowChat" class="flowChat" aria-live="polite"></div>
+          <div id="chatMessages" class="chatMessages" aria-live="polite"></div>
+        </div>
         <div id="chatThinking" class="thinking hidden">Thinking and checking tools...</div>
         <div class="composer">
           <textarea id="chatPrompt" aria-label="Chat prompt">List available tools from the connected MCP server.</textarea>
@@ -202,8 +178,18 @@
       </section>
 
       <aside class="panel inspector">
-        <h2>Live Relay</h2>
-        <pre id="eventLog" aria-label="Live relay events"></pre>
+        <h2>Movie reel</h2>
+        <div class="reelbar" role="toolbar" aria-label="Movie reel controls">
+          <button type="button" id="reelRun" class="flow-btn">Run</button>
+          <label class="reel-speed">Speed <select id="reelSpeed" aria-label="Playback speed"></select></label>
+          <span id="reelCount" class="reel-count"></span>
+        </div>
+        <div id="reel" class="reel" aria-label="One frame per hop"></div>
+
+        <details class="raw">
+          <summary>Raw events</summary>
+          <pre id="eventLog" aria-label="Raw relay events"></pre>
+        </details>
 
         <details>
           <summary>Advanced: Raw MCP + Tool Call + Local LLM</summary>

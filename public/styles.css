@@ -61,6 +61,19 @@ body {
 .shell-bar .banner {
   flex: 1 1 320px;
   margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.shell-brand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+.shell-bar .top-menu,
+.shell-bar .pill {
+  font-size: 1rem;
 }
 
 .top-menu--framed {
@@ -320,30 +333,61 @@ details summary {
   font: inherit;
 }
 
-/* CIMD walkthrough: six numbered steps above the working panels. Colours are the shared tokens only. */
-.walk { padding: 12px 12px 0; }
-.walk .section-label { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.walk-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: .75rem; }
-.walk-step { position: relative; border: 1px solid var(--border); border-top: 4px solid var(--accent); border-radius: 10px; background: var(--surface); color: var(--text); padding: .9rem 1rem .9rem 3.3rem; min-width: 0; }
-.walk-n { position: absolute; left: .9rem; top: .85rem; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 700; display: grid; place-items: center; }
-.walk-step h2 { margin: 0 0 .25rem; font-size: 1rem; color: var(--text); }
-.walk-lead { margin: 0 0 .5rem; color: var(--text-body); font-size: .9rem; }
-.walk-body label { display: block; font-size: .85rem; color: var(--muted); }
-.walk-body input { width: 100%; margin-top: .2rem; }
-.walk-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .4rem; }
-.walk-kv { display: grid; grid-template-columns: 7.5rem 1fr; gap: .5rem; margin: .2rem 0; font-size: .85rem; }
-.walk-kv span { color: var(--muted); }
-.walk code { font-family: var(--font-mono); font-size: .8rem; overflow-wrap: anywhere; color: var(--text); }
-.walk-hot { font-weight: 700; border-left: 3px solid var(--accent); padding-left: .4rem; }
-.walk-note { margin: .4rem 0 0; font-size: .85rem; color: var(--text-body); }
-.walk-checks { list-style: none; margin: 0; padding: 0; font-size: .85rem; }
-.walk-checks li { display: flex; gap: .5rem; align-items: baseline; margin: .3rem 0; }
-.walk-chip { display: inline-block; padding: .05rem .5rem; border-radius: 999px; border: 1px solid var(--border); font-size: .75rem; font-weight: 700; }
-.walk-checks .walk-chip { white-space: nowrap; }
-.walk-chip--ok { border-color: var(--status-ok); color: var(--status-ok); }
-.walk-chip--warn { border-color: var(--status-warn); color: var(--status-warn); }
-.walk-chip--bad { border-color: var(--danger-text); color: var(--danger-text); }
-.walk-chip--wait { color: var(--muted); }
-.walk-tools { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
-.walk-tool { border: 1px solid var(--border); border-radius: 6px; padding: .05rem .4rem; font-size: .8rem; font-family: var(--font-mono); }
-.walk-refusal { margin-top: .5rem; display: grid; gap: .15rem; }
+/* Page title: says what the page does, above the walkthrough. */
+.page-intro { padding: 18px 12px 0; }
+.page-intro h1 { margin: 0 0 .4rem; font-size: 1.9rem; line-height: 1.2; color: var(--text); }
+.page-lead { margin: 0; max-width: 80ch; font-size: 1.05rem; line-height: 1.5; color: var(--text-body); }
+
+/* Numbered steps: a progress strip, state from what really happened. */
+.stepper { padding: 14px 12px 0; }
+.stepper ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .5rem; }
+.stepper li { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: .55rem; align-items: center; border: 1px solid var(--border); border-top: 4px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); padding: .55rem .7rem; min-width: 0; }
+.stepper li.done { border-top-color: var(--status-ok); }
+.stepper li.cur { border-top-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.st-n { grid-row: 1 / span 2; display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.stepper li.done .st-n { background: var(--status-ok); }
+.st-t { font-weight: 600; font-size: .95rem; line-height: 1.25; }
+.st-state { font-size: .8rem; color: var(--muted); font-weight: 700; }
+.stepper li.done .st-state { color: var(--status-ok); }
+.stepper li.cur .st-state { color: var(--accent); }
+@media (max-width: 1100px) { .stepper ol { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* One scroller holds the flow chat and the older system bubbles. */
+.chatScroll { flex: 1; min-height: 0; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.chatScroll .chatMessages { flex: none; overflow: visible; border: 0; padding: 0; background: transparent; }
+.flowChat { display: grid; gap: 12px; }
+.flow-msg { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: .65rem; }
+.flow-msg.faded { opacity: .4; }
+.flow-msg.sel .flow-bub { outline: 2px solid var(--accent); outline-offset: 2px; }
+.flow-av { width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: var(--box-dark); background: var(--c); }
+.flow-bub { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: .6rem .8rem; font-size: 1rem; line-height: 1.45; min-width: 0; overflow-wrap: anywhere; }
+.flow-who { display: flex; align-items: center; gap: .5rem; font-size: .85rem; font-weight: 700; color: var(--c); margin-bottom: .15rem; }
+.flow-sn { display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: .75rem; }
+.flow-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .45rem; }
+.flow-chip { display: inline-block; padding: .05rem .55rem; border-radius: 999px; border: 1px solid var(--border); font-size: .78rem; font-weight: 700; color: var(--muted); }
+.flow-chip--ok { color: var(--status-ok); border-color: var(--status-ok); }
+.flow-chip--warn { color: var(--status-warn); border-color: var(--status-warn); }
+.flow-chip--bad { color: var(--danger-text); border-color: var(--danger-text); }
+.flow-btn { border: 1px solid var(--border); border-radius: 8px; padding: .4rem .9rem; font: inherit; font-weight: 600; background: var(--surface); color: var(--text); cursor: pointer; }
+.flow-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Vertical movie reel: one frame per hop, top to bottom, perforations down both edges. */
+.reelbar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-bottom: .6rem; font-size: .9rem; color: var(--muted); }
+.reel-speed { display: inline-flex; align-items: center; gap: .35rem; }
+.reel { display: grid; gap: 0; padding: 0 22px; background:
+  radial-gradient(circle, var(--border) 3px, transparent 3.5px) 6px 0 / 10px 22px repeat-y,
+  radial-gradient(circle, var(--border) 3px, transparent 3.5px) calc(100% - 6px) 0 / 10px 22px repeat-y; }
+.frm { position: relative; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-left: 4px solid var(--c); border-radius: 8px; padding: .5rem .6rem .55rem; display: grid; gap: .15rem; cursor: pointer; min-width: 0; }
+.frm-top { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; font-size: .8rem; font-weight: 700; color: var(--c); }
+.frm-no { display: inline-grid; place-items: center; min-width: 1.3rem; height: 1.3rem; border-radius: 4px; background: var(--c); color: var(--box-dark); font-size: .75rem; }
+.frm-ttl { font-weight: 600; } .frm-fact { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.frm.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
+.frm.now { outline: 3px solid var(--accent); outline-offset: 2px; }
+.frm.next { opacity: .45; }
+.frm-now { margin-left: auto; background: var(--accent); color: var(--on-accent); border-radius: 999px; padding: 0 .55rem; font-size: .75rem; }
+.frm-down { height: 16px; position: relative; }
+.frm-down::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 4px; width: 2px; background: var(--border); }
+.frm-down::after { content: ""; position: absolute; left: calc(50% - 4px); bottom: 0; border: 5px solid transparent; border-top: 7px solid var(--border); border-bottom: 0; }
+.flow-empty { color: var(--muted); font-size: .95rem; margin: .4rem 0; }
+details.raw { margin-top: .8rem; } details.raw summary { cursor: pointer; font-weight: 600; }
+#eventLog { min-height: 120px; max-height: 260px; }
