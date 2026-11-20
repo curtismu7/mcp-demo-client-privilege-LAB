@@ -87,11 +87,23 @@ If protecting `https://api.pingone.com/v1/environments/<envId>/mcp`:
 - Gateway backend → that URL
 - Client MCP URL → `https://<gateway>/mcp/`
 
+## CIMD (client ID metadata document)
+
+On a hosted build (one with a public `LAB_ALLOWED_HOSTS` name) the client serves its own document at
+`https://<lab host>/client.json`. When the MCP server's OAuth metadata says it accepts a document URL as
+`client_id` (`client_id_metadata_document_supported: true` and `none` among the token auth methods), and you
+left **OAuth Client ID** empty, Start OAuth uses that URL as the `client_id` and registers nothing. The chat
+says so, and the event log gets a `cimd` event. Otherwise it registers dynamically as before. A Client ID you
+type is always kept. The loopback build has no public address for a server to fetch, so it never uses CIMD.
+
+With a Privilege gateway, an admin must list that document URL under Settings, MCP Client Documents first.
+
 ## Files
 
 | File | Purpose |
 |---|---|
 | `server.js` | OAuth, MCP relay, chat, LLM routing |
+| `cimd.js` | The client's CIMD document and the "does this server accept one" test |
 | `public/index.html` | UI layout |
 | `public/app.js` | Chat, auto-refresh, tool rendering |
 | `public/styles.css` | Dark chat-first theme |
