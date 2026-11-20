@@ -268,7 +268,13 @@ els.startAuthBtn.addEventListener('click', async () => {
     await saveConfigFromInputs();
     const data = await api('/api/auth/start', { method: 'POST' });
     window.open(data.authUrl, '_blank', 'noopener,noreferrer');
-    appendChat('system', 'OAuth started. Complete login in the opened tab.');
+    // Say how this client introduced itself: that is the point of CIMD.
+    const how = {
+      cimd: `CIMD: the client_id is this app's own document URL, ${data.clientId}. Nothing was registered.`,
+      dcr: `registered dynamically as ${data.clientId}.`,
+      manual: `using the Client ID you entered, ${data.clientId}.`
+    }[data.clientIdentity] || `client ${data.clientId}.`;
+    appendChat('system', `OAuth started (${how}) Complete login in the opened tab.`);
   } catch (error) {
     appendChat('system', `OAuth start failed: ${error.message}`);
   }

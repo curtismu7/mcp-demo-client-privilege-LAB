@@ -7,6 +7,7 @@ import { buildLlmRequest, readLlmReply, llmPath } from './llm.js';
 import { shelfInfo } from './shelfLink.js';
 import { hostAllowed, isLoopbackName, labAllowedHosts, parseHost, writeAllowed } from './safety.js';
 import { gatewayMcpUrl } from './mcpUrl.js';
+import { cimdClientIdUrl, clientDocument, serverSupportsCimd } from './cimd.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 // LLM_API_KEY wins; HOSTED_LLM_VIRTUAL_KEY (the shared settings file's name for the hosted
@@ -329,6 +330,7 @@ async function discoverResourceMetadata(response, mcpUrl) {
     authorizationUri: asMeta.authorization_endpoint,
     tokenUri: asMeta.token_endpoint,
     registrationUri: asMeta.registration_endpoint || null,
+    cimdSupported: serverSupportsCimd(asMeta),
     scopes: Array.isArray(rm.scopes_supported) ? rm.scopes_supported : null
   };
 }
@@ -429,20 +431,32 @@ async function handleStartAuth(req, res) {
     const redirectUri = incoming && !isLoopbackName(incoming.name) && incoming.name === [...LAB_HOSTS][0]
       ? `https://${incoming.name}/auth/callback`
       : `http://${HOST === '0.0.0.0' || HOST === '::' ? '127.0.0.1' : HOST}:${PORT}/auth/callback`;
-    const { authorizationUri, tokenUri, registrationUri, scopes } = await discoverAuth();
-    // No client id set? Register one with the server's RFC 7591 endpoint when it offers one
-    // (the SkyHigh Airline Connector does; PingOne hosted MCP does not, so the manual id stays).
+    const { authorizationUri, tokenUri, registrationUri, cimdSupported, scopes } = await discoverAuth();
+    // No client id set? Prefer CIMD: when the server accepts a client metadata document and this build
+    // has a public address, the client_id is the URL of our own /client.json and nothing is registered.
+    // Otherwise register with the server's RFC 7591 endpoint when it offers one (the SkyHigh Airline
+    // Connector does; PingOne hosted MCP does not, so the manual id stays).
+    let clientIdentity = 'manual';
+    const documentUrl = cimdClientIdUrl(LAB_HOSTS);
     if (!state.config.clientId) {
-      if (!registrationUri) {
+      if (cimdSupported && documentUrl) {
+        state.config.clientId = documentUrl;
+        clientIdentity = 'cimd';
+        emitEvent('oauth', { phase: 'cimd', clientId: documentUrl, registered: false });
+      } else if (!registrationUri) {
         json(res, 400, { error: 'Client ID is required before auth start (the server offers no dynamic registration).' });
         return;
+      } else {
+        const registered = await dynamicallyRegister(registrationUri, redirectUri);
+        state.config.clientId = registered.client_id;
+        clientIdentity = 'dcr';
+        if (Array.isArray(registered.redirect_uris) && registered.redirect_uris[0]) {
+          state.config.registeredRedirectUri = registered.redirect_uris[0];
+        }
+        emitEvent('oauth', { phase: 'dcr', clientId: registered.client_id, clientName: registered.client_name || null });
       }
-      const registered = await dynamicallyRegister(registrationUri, redirectUri);
-      state.config.clientId = registered.client_id;
-      if (Array.isArray(registered.redirect_uris) && registered.redirect_uris[0]) {
-        state.config.registeredRedirectUri = registered.redirect_uris[0];
-      }
-      emitEvent('oauth', { phase: 'dcr', clientId: registered.client_id, clientName: registered.client_name || null });
+    } else if (documentUrl && state.config.clientId === documentUrl) {
+      clientIdentity = 'cimd';
     }
     const verifier = randomString(48);
     const challenge = sha256Base64Url(verifier);
@@ -473,7 +487,7 @@ async function handleStartAuth(req, res) {
       authUrl: authUrl.toString()
     });
 
-    json(res, 200, { authUrl: authUrl.toString(), clientId: state.config.clientId, scope: effectiveScopes });
+    json(res, 200, { authUrl: authUrl.toString(), clientId: state.config.clientId, clientIdentity, scope: effectiveScopes });
   } catch (error) {
     emitEvent('error', { scope: 'oauth_start', message: error.message });
     json(res, 500, { error: error.message });
@@ -818,6 +832,16 @@ const server = http.createServer(async (req, res) => {
   if (!writeAllowed(req.method, req.headers, LAB_HOSTS, PORT)) {
     json(res, 403, { error: 'bad_origin', message: 'this server accepts same-origin writes only' });
     return;
+  }
+
+  // The CIMD document a server fetches to learn who this client is. Only the hosted build (public
+  // lab Host name) has one; on loopback it falls through to the static files and answers 404.
+  if (req.method === 'GET' && parsedUrl.pathname === '/client.json') {
+    const doc = clientDocument(LAB_HOSTS);
+    if (doc) {
+      json(res, 200, doc, { 'Cache-Control': 'public, max-age=300' });
+      return;
+    }
   }
 
   if (req.method === 'GET' && parsedUrl.pathname === '/api/shelf') {
