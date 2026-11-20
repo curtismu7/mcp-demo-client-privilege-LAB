@@ -422,3 +422,10 @@ details.chat-model > summary { cursor: pointer; font-weight: 700; font-size: .9r
 
 /* The one action this page exists for: the Ping Red primary (STANDALONE-UI-PATTERNS section 9). */
 .flow-btn.primary { padding: .55rem 1.4rem; font-size: 1rem; }
+
+/* No red in the pop-out or the reel panes (owner): important keys and the Form/JSON toggle read blue. The shared
+   JsonPane.css is a pinned copy, so this overrides it here instead of editing it. */
+.flow-detail .json, .flow-detail .facts, .flow-detail .http, .flow-pane .json, .flow-pane .facts, .flow-pane .http { --j-hot-bg: color-mix(in srgb, var(--status-info) 20%, transparent); }
+.flow-detail .jform__row[data-hot="true"], .flow-pane .jform__row[data-hot="true"] { border-left-color: var(--status-info); }
+.flow-detail .jform__chips[data-hot="true"] .jform__chip, .flow-pane .jform__chips[data-hot="true"] .jform__chip { border-color: var(--status-info); }
+.flow-detail .jsonbox__toggle button[aria-pressed="true"], .flow-pane .jsonbox__toggle button[aria-pressed="true"] { background: var(--status-info); border-color: var(--status-info); color: var(--box-dark); }
