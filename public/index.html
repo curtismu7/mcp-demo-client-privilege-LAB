@@ -30,6 +30,7 @@
             <button type="button" id="mode-real" aria-pressed="false" data-testid="mode-real" title="Real routes the model call through the Privilege LLM lane (LLM_API_KEY + a lane URL required).">Real</button>
           </span>
           <a class="top-menu__shelf top-menu__shelf--accent" id="shelf-link" href="#" target="_blank" rel="noreferrer" style="display:none;">Shelf</a>
+          <a class="top-menu__shelf" id="guide-link" href="#" target="_blank" rel="noreferrer" style="display:none;">Setup guide</a>
         </div>
         <div class="top-menu__row" style="display:inline-flex;align-items:center;gap:.5rem;">
           <span class="top-menu__ctl">Theme
@@ -83,6 +84,8 @@
           mockBtn.setAttribute("aria-pressed", String(!real));
           realBtn.setAttribute("aria-pressed", String(real));
           realBtn.disabled = info.realAvailable === false;
+          var guide = document.getElementById("guide-link");
+          if (guide && info.setupGuideUrl) { guide.href = info.setupGuideUrl; guide.style.display = ""; }
           realBtn.title = info.realAvailable === false && info.realReason ? info.realReason : realBtn.title;
           var banner = document.querySelector(".banner");
           if (banner) {

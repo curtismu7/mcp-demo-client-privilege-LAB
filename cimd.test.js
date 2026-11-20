@@ -5,7 +5,7 @@ import http from 'node:http';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { cimdClientIdUrl, clientDocument, serverSupportsCimd } from './cimd.js';
+import { cimdClientIdUrl, clientDocument, serverSupportsCimd, setupGuideUrl } from './cimd.js';
 import { labAllowedHosts } from './safety.js';
 
 // Example names only (.example); the real lab name lives in docker-compose.yml.
@@ -77,10 +77,10 @@ function stubAs(cimd) {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ server, calls, base: `http://127.0.0.1:${server.address().port}` })));
 }
 
-async function withApp(labHosts, fn) {
+async function withApp(labHosts, fn, extraEnv = {}) {
   const port = await freePort();
   const child = spawn(process.execPath, [path.join(here, 'server.js')], {
-    env: { PATH: process.env.PATH, HOST: '127.0.0.1', PORT: String(port), LAB_ALLOWED_HOSTS: labHosts, HOME: '/nonexistent' },
+    env: { PATH: process.env.PATH, HOST: '127.0.0.1', PORT: String(port), LAB_ALLOWED_HOSTS: labHosts, HOME: '/nonexistent', ...extraEnv },
     stdio: ['ignore', 'pipe', 'inherit']
   });
   try {
@@ -176,4 +176,38 @@ test('a Client ID you type is kept and no document or registration is used', asy
   } finally {
     stub.server.close();
   }
+});
+
+test('the setup guide link is an https address from SETUP_GUIDE_URL, or nothing', () => {
+  assert.equal(setupGuideUrl({ SETUP_GUIDE_URL: 'https://docs.example/guide' }), 'https://docs.example/guide');
+  assert.equal(setupGuideUrl({ SETUP_GUIDE_URL: '  https://docs.example/guide  ' }), 'https://docs.example/guide');
+  assert.equal(setupGuideUrl({}), null);
+  assert.equal(setupGuideUrl({ SETUP_GUIDE_URL: '' }), null);
+  assert.equal(setupGuideUrl({ SETUP_GUIDE_URL: 'http://docs.example/guide' }), null);
+  assert.equal(setupGuideUrl({ SETUP_GUIDE_URL: 'javascript:alert(1)' }), null);
+  assert.equal(setupGuideUrl({ SETUP_GUIDE_URL: 'not a url' }), null);
+});
+
+test('/api/info carries the setup guide link only when it is set to https', async () => {
+  await withApp('', async (port) => {
+    assert.equal((await (await call(port, 'GET', '/api/info')).json()).setupGuideUrl, 'https://docs.example/guide');
+  }, { SETUP_GUIDE_URL: 'https://docs.example/guide' });
+  await withApp('', async (port) => {
+    assert.equal((await (await call(port, 'GET', '/api/info')).json()).setupGuideUrl, null);
+  });
+  await withApp('', async (port) => {
+    assert.equal((await (await call(port, 'GET', '/api/info')).json()).setupGuideUrl, null);
+  }, { SETUP_GUIDE_URL: 'javascript:alert(1)' });
+});
+
+test('the page has a hidden Setup guide link that is shown only from /api/info', async () => {
+  await withApp('', async (port) => {
+    const html = await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port, path: '/', headers: { host: `127.0.0.1:${port}` } }, (res) => {
+        let t = ''; res.on('data', (d) => { t += d; }); res.on('end', () => resolve(t));
+      }).on('error', reject);
+    });
+    assert.match(html, /id="guide-link"[^>]*style="display:none;"[^>]*>Setup guide</);
+    assert.match(html, /info\.setupGuideUrl/);
+  });
 });

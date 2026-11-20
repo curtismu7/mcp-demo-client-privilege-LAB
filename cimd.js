@@ -41,3 +41,14 @@ export function serverSupportsCimd(asMeta) {
     && Array.isArray(asMeta.token_endpoint_auth_methods_supported)
     && asMeta.token_endpoint_auth_methods_supported.includes('none');
 }
+
+// Link to the setup guide, from SETUP_GUIDE_URL. Only an https address counts; unset means no link,
+// so the repo itself names no document.
+export function setupGuideUrl(env = process.env) {
+  try {
+    const u = new URL(String(env.SETUP_GUIDE_URL || '').trim());
+    return u.protocol === 'https:' ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}

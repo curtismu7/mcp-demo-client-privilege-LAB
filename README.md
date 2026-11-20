@@ -98,6 +98,8 @@ type is always kept. The loopback build has no public address for a server to fe
 
 With a Privilege gateway, an admin must list that document URL under Settings, MCP Client Documents first.
 
+Set `SETUP_GUIDE_URL` (an https address) to show a **Setup guide** link in the top menu; unset, there is no link.
+
 ## Files
 
 | File | Purpose |
