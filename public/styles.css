@@ -395,7 +395,15 @@ details.raw { margin-top: .8rem; } details.raw summary { cursor: pointer; font-w
 /* The pop-out box: the real API call behind a hop. */
 .flow-msg.has-detail { cursor: pointer; }
 .flow-msg.has-detail:hover .flow-bub { border-color: var(--accent); }
-.flow-detail { position: fixed; z-index: 50; top: 110px; right: 24px; width: min(620px, calc(100vw - 48px)); max-height: calc(100vh - 150px); overflow: auto; resize: both; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-top: 5px solid var(--c); border-radius: 12px; padding: .8rem 1rem 1rem; box-shadow: 0 16px 44px rgba(0, 0, 0, .55); }
+/* The hop detail is a FloatingDialog (§8d): geometry, drag, resize and the narrow-screen sheet come from
+   floating-dialog.css and floatingPanel.js (custom properties --fd-x/y/w/h). The lab keeps only its own
+   lane colour and body padding. */
+.flow-detail {
+  border-top: 5px solid var(--c);
+  padding: 0;
+}
+.flow-detail .fd-body { padding: .8rem 1rem 1rem; }
+.flow-detail .fd-titlebar { border-radius: 8px 8px 0 0; }
 .flow-detail-head { display: flex; align-items: center; gap: .7rem; }
 .flow-detail-ttl { flex: 1; font-weight: 700; font-size: 1.05rem; } .flow-detail-from { font-size: .8rem; color: var(--c); font-weight: 700; }
 .flow-detail-say { margin: .5rem 0; font-size: .95rem; color: var(--text-body); }
