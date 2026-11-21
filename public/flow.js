@@ -168,6 +168,10 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
         el('div', { text: `${h.from === h.to ? h.from : `${h.from} → ${h.to}`} · step ${h.step}` }),
         el('div', { text: h.title })));
     stepDetailEl.replaceChildren(head, buildDetailBody(h));
+    // The panel (not this inner div) is what scrolls; replacing the content doesn't reset it, so a long
+    // response left the panel scrolled part-way down would otherwise hide the next, shorter step's own top
+    // (its role line and Request) behind a scroll position that no longer matches what's on screen.
+    if (stepDetailEl.parentElement) stepDetailEl.parentElement.scrollTop = 0;
   }
 
   // The one action this run is waiting on, if any: shown above the reel, not inside it (each hop already has
