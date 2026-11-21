@@ -441,6 +441,11 @@ details.chat-model > summary { cursor: pointer; font-weight: 700; font-size: .9r
 .jform__chips[data-hot="true"] .jform__chip { border-color: var(--status-info); }
 .jsonbox__toggle button[aria-pressed="true"] { background: var(--status-info); border-color: var(--status-info); color: var(--box-dark); }
 
+/* A wider key column (owner: labels like authorization_endpoint were wrapping onto 3 lines in the narrow pop-out
+   and step-detail panel). The shared JsonPane.css is a pinned copy, so this overrides its column width instead of
+   editing it; jsonPane.js adds a <wbr> after each underscore so a wrap, when one is still needed, lands there. */
+.jform__row { grid-template-columns: minmax(96px, 42%) minmax(0, 1fr); }
+
 /* Selection and progress read blue (owner); Ping Red stays for the Sign in button and for real errors. --select is for
    outlines and text on the page (8:1 on the surface, light and dark); --select-fill is for badges with a white label. */
 :root { --select: var(--status-info); --select-fill: #12538d; }

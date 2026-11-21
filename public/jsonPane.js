@@ -165,6 +165,20 @@ function chipList(items, k, hot) {
   return h('ul', { className: 'jform__chips', 'data-hot': hot && hot.has(k) ? 'true' : undefined }, items.map((x) => h('li', { className: 'jform__chip' }, visible(String(x)))));
 }
 
+// snake_case keys (authorization_endpoint, client_secret_post, ...) have no natural break point, so the narrow
+// key column wraps them mid-letter. A <wbr> right after each underscore gives the browser a legal, readable
+// place to break instead, with no change to the visible text and no edit to the pinned stylesheet.
+function breakable(text) {
+  const parts = String(text).split('_');
+  const nodes = [];
+  parts.forEach((part, i) => {
+    const last = i === parts.length - 1;
+    nodes.push(document.createTextNode(last ? part : `${part}_`));
+    if (!last) nodes.push(document.createElement('wbr'));
+  });
+  return nodes;
+}
+
 function form(value, hot, k = '', depth = 0) {
   if (depth > MAX_FORM_DEPTH) return h('span', { className: 'jform__v' }, visible(JSON.stringify(value)));
   if (Array.isArray(value)) {
@@ -176,7 +190,7 @@ function form(value, hot, k = '', depth = 0) {
     if (!entries.length) return h('span', { className: 'jform__v jform__v--null' }, 'empty');
     return h('dl', { className: 'jform', 'data-depth': Math.min(depth, 3) }, entries.map(([key, v]) =>
       h('div', { className: 'jform__row', 'data-hot': hot.has(key) ? 'true' : undefined, 'data-alert': ALERT.has(key) ? 'true' : undefined, 'data-nested': nestedValue(v) ? 'true' : undefined },
-        h('dt', { className: 'jform__k' }, visible(key)),
+        h('dt', { className: 'jform__k' }, ...breakable(visible(key))),
         h('dd', { className: 'jform__d' }, prim(v) ? valueEl(v, key, hot) : form(v, hot, key, depth + 1)))));
   }
   return valueEl(value, k);
