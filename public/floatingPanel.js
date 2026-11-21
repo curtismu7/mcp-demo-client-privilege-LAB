@@ -29,7 +29,9 @@ export function floatingPanel(panel, { storageKey = null, minW = 280, minH = 180
   const saved = readStored(storageKey);
   const initial = () => {
     const vp = viewport();
-    const sz = clampSize(saved?.size, { w: minW, h: minH }, vp) || { w: Math.min(420, Math.max(minW, vp.w - 2 * MARGIN)), h: null };
+    // 420 wrapped long gateway URLs onto 3-4 lines (STANDALONE-UI-PATTERNS §8d leaves the default width to the
+    // caller). 560 still fits the viewport check below, and a user's own resize is remembered as before.
+    const sz = clampSize(saved?.size, { w: minW, h: minH }, vp) || { w: Math.min(560, Math.max(minW, vp.w - 2 * MARGIN)), h: null };
     const p = saved?.pos && Number.isFinite(saved.pos.x) && Number.isFinite(saved.pos.y)
       ? clampToViewport(saved.pos, sz, vp)
       : { x: Math.max(MARGIN, Math.round((vp.w - sz.w) / 2)), y: Math.max(MARGIN, Math.round(vp.h * 0.12)) };
