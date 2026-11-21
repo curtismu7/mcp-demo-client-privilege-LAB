@@ -1,6 +1,32 @@
 :root {
   /* App-local layout colours only; all token colours (--bg, --text, --muted, --focus, --accent*, status) come
-     from standalone-ui.css so C1 can check contrast against the real values. */
+     from standalone-ui.css so C1 can check contrast against the real values. These were dark-only (no light
+     values existed at all), so the sidebar, reel and step-detail panels, the chat bubbles and the "Thinking"
+     box stayed dark even with the Light theme selected. Light values below; the dark block further down keeps
+     every number that was already live. */
+  --line: #d0d4d9;
+  --panel: #eff0f1;
+  --panel-2: #e4e7eb;
+  --panel-3: #eef0f3;
+  --info-bg: #e6f2ff;
+  --info-text: #0b4a8f;
+  --info-border: #3b82f6;
+  --info-accent: #1d4ed8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --line: #30363d;
+    --panel: #161b22;
+    --panel-2: #1f2937;
+    --panel-3: #111827;
+    --info-bg: #172534;
+    --info-text: #7dd3fc;
+    --info-border: #3b82f6;
+    --info-accent: #93c5fd;
+  }
+}
+:root[data-theme="dark"] {
   --line: #30363d;
   --panel: #161b22;
   --panel-2: #1f2937;
