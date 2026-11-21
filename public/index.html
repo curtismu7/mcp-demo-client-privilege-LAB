@@ -174,23 +174,20 @@
           <!-- ui-pattern: allow P9 Refresh Now is chrome: a panel refresh beside the Send action; Send is the page's one primary -->
           <button id="listToolsBtn" type="button" class="primary">Refresh Now</button>
         </div>
-      </aside>
 
-      <section class="panel chatPanel">
-        <div class="chatScroll">
-          <div id="flowChat" class="flowChat" aria-live="polite"></div>
-          <div id="chatMessages" class="chatMessages" aria-live="polite"></div>
-        </div>
+        <h2>Ask the agent</h2>
+        <div id="chatMessages" class="chatMessages" aria-live="polite"></div>
         <div id="chatThinking" class="thinking hidden">Thinking and checking tools...</div>
         <div class="composer">
           <textarea id="chatPrompt" aria-label="Chat prompt">List available tools from the connected MCP server.</textarea>
           <!-- ui-pattern: allow P9 Send is the page's one primary action (Refresh Now is panel chrome) -->
           <button id="sendChatBtn" type="button" class="primary">Send</button>
         </div>
-      </section>
+      </aside>
 
-      <aside class="panel inspector">
+      <section class="panel inspector">
         <h2>Movie reel</h2>
+        <div id="reelStatus" class="reel-status" aria-live="polite"></div>
         <div class="reelbar" role="toolbar" aria-label="Movie reel controls">
           <button type="button" id="reelRun" class="flow-btn">Run</button>
           <button type="button" id="reelReset" class="flow-btn" title="Clear the run and the sign-in and start the demo again. Keeps the MCP address and the model.">Reset</button>
@@ -236,6 +233,11 @@
           </div>
           <div id="llmResult"></div>
         </details>
+      </section>
+
+      <aside class="panel detail">
+        <h2>Step detail</h2>
+        <div id="stepDetail" class="step-detail" aria-live="polite"></div>
       </aside>
     </main>
 
