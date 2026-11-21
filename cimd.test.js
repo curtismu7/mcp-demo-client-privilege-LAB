@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { cimdClientIdUrl, clientDocument, serverSupportsCimd, setupGuideUrl } from './cimd.js';
 import { labAllowedHosts } from './safety.js';
-import { createFlow, redactBody } from './flow.js';
+import { createFlow, redactBody, redactValue } from './flow.js';
 import { isPlaceholderMcpUrl } from './public/mcpUrlCheck.js';
 
 // Example names only (.example); the real lab name lives in docker-compose.yml.
@@ -478,6 +478,14 @@ test('every API-call hop carries its real request and response for the pop-out b
 test('tokens, codes, secrets and verifiers are redacted before anything is stored on a hop', () => {
   const r = redactBody({ access_token: 'abc', refresh_token: 'def', id_token: 'ghi', token_type: 'Bearer', expires_in: 3600, scope: 'openid', code: 'c1', code_verifier: 'v1', client_secret: 's', client_id: 'x', redirect_uri: 'https://a.example/cb', nested: { password: 'p', keep: 1 }, list: [{ refresh_token: 'z' }] });
   assert.deepEqual(r, { access_token: '[redacted]', refresh_token: '[redacted]', id_token: '[redacted]', token_type: 'Bearer', expires_in: 3600, scope: 'openid', code: '[redacted]', code_verifier: '[redacted]', client_secret: '[redacted]', client_id: 'x', redirect_uri: 'https://a.example/cb', nested: { password: '[redacted]', keep: 1 }, list: [{ refresh_token: '[redacted]' }] });
+});
+
+test('a long real token keeps a few characters at each end instead of disappearing entirely', () => {
+  const long = 'eyJhbGciOiJSUzI1NiJ9.sometoken.payload-that-is-long';
+  const r = redactBody({ access_token: long });
+  assert.equal(r.access_token, `${long.slice(0, 6)}…${long.slice(-4)} [redacted]`);
+  assert.equal(redactValue('short'), '[redacted]');
+  assert.equal(redactValue(long), `${long.slice(0, 6)}…${long.slice(-4)} [redacted]`);
 });
 
 test('the page polls for tools only once signed in, so a half-typed MCP address is never tried', async () => {
