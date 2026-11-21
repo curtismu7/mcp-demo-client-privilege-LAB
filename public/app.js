@@ -1,11 +1,13 @@
 import { showJson } from './jsonPane.js';
 import { mountFlow } from './flow.js';
 import { isPlaceholderMcpUrl } from './mcpUrlCheck.js';
+import { MCP_PRESETS, DEFAULT_PRESET_ID, presetForUrl } from './presets.js';
 
 // Keys that matter in this client's payloads: they stand out in both views of every JSON pane (Rule 24).
 const HOT = ['authenticated', 'warning', 'isError', 'suggested_tools'];
 
 const els = {
+  mcpPreset: document.querySelector('#mcpPreset'),
   mcpUrl: document.querySelector('#mcpUrl'),
   clientId: document.querySelector('#clientId'),
   scopes: document.querySelector('#scopes'),
@@ -165,6 +167,7 @@ async function refreshState() {
   const state = await api('/api/state');
   // The shipped placeholder address is not something to show: leave the box empty so the hint reads.
   els.mcpUrl.value = isPlaceholderMcpUrl(state.config.mcpUrl) ? '' : (state.config.mcpUrl || '');
+  syncPresetSelection(els.mcpUrl.value);
   els.clientId.value = state.config.clientId || '';
   els.scopes.value = state.config.scopes || '';
   els.llmUrl.value = state.config.llmUrl || '';
@@ -174,6 +177,34 @@ async function refreshState() {
   renderStatus({ tokenExpiresAt: state.oauth?.expiresAt || null });
   await flowUi.update(state);
 }
+
+// Fill the preset dropdown once, and keep it in step with the URL box: a preset
+// address shows that preset, anything else (including a pasted custom door) shows Custom.
+function buildPresetOptions() {
+  for (const p of MCP_PRESETS) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.label;
+    els.mcpPreset.appendChild(opt);
+  }
+}
+
+function syncPresetSelection(url) {
+  const match = presetForUrl(url);
+  els.mcpPreset.value = match ? match.id : '';
+}
+
+function applyPreset(id) {
+  const preset = MCP_PRESETS.find(p => p.id === id);
+  if (!preset) return; // Custom: the URL box is the user's own
+  els.mcpUrl.value = preset.mcpUrl;
+  if (preset.scopes) els.scopes.value = preset.scopes;
+  saveConfigFromInputs();
+}
+
+els.mcpPreset.addEventListener('change', () => applyPreset(els.mcpPreset.value));
+els.mcpUrl.addEventListener('input', () => syncPresetSelection(els.mcpUrl.value));
+buildPresetOptions();
 
 async function saveConfigFromInputs() {
   const config = {
@@ -393,6 +424,13 @@ events.addEventListener('mcp', (event) => appendEvent(JSON.parse(event.data)));
 events.addEventListener('error', (event) => appendEvent(JSON.parse(event.data)));
 
 await refreshState();
+// First visit: nothing configured yet, so start on the default door — the page is
+// one Sign In away from a real run with no pasting.
+if (isPlaceholderMcpUrl(els.mcpUrl.value)) {
+  els.mcpPreset.value = DEFAULT_PRESET_ID;
+  applyPreset(DEFAULT_PRESET_ID);
+  await refreshState();
+}
 await refreshToolsAuto();
 scheduleAutoRefresh();
 window.addEventListener('focus', () => {
