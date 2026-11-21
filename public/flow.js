@@ -29,7 +29,8 @@ const chip = (text, tone) => el('span', { class: `flow-chip flow-chip--${tone ||
 const lane = (h) => LANES[h.lane] || LANES.client;
 
 export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
-  const chatEl = document.querySelector('#flowChat');
+  const reelStatusEl = document.querySelector('#reelStatus');
+  const stepDetailEl = document.querySelector('#stepDetail');
   const reelEl = document.querySelector('#reel');
   const runBtn = document.querySelector('#reelRun');
   const speedSel = document.querySelector('#reelSpeed');
@@ -47,20 +48,6 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
 
   const hops = () => last?.flow || [];
   const authed = () => Boolean(last?.oauth?.authenticated);
-
-  function bubble(h, i) {
-    const l = lane(h);
-    const faded = playAt !== null && i > playAt;
-    const row = el('div', { class: `flow-msg${faded ? ' faded' : ''}${h.n === selected ? ' sel' : ''}`, 'data-n': String(h.n) });
-    const av = el('div', { class: 'flow-av', 'aria-hidden': 'true', text: l.letter });
-    av.style.setProperty('--c', `var(${l.token})`);
-    const who = el('div', { class: 'flow-who' }, el('span', { class: 'flow-sn', text: String(h.step) }), el('span', { text: l.name }));
-    who.style.setProperty('--c', `var(${l.token})`);
-    const chips = el('div', { class: 'flow-row' }, chip(h.status, h.tone));
-    row.append(av, el('div', { class: 'flow-bub' }, who, el('div', { text: h.say }), chips));
-    if (h.detail) { row.classList.add('has-detail'); chips.append(chip('API call: click to open', 'plain')); row.addEventListener('click', () => openDetail(h)); }
-    return row;
-  }
 
   function note(text, ...actions) {
     const row = el('div', { class: 'flow-msg' });
@@ -111,22 +98,10 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
     token: "The gateway's token endpoint",
     tools: 'The door: the MCP address on the gateway'
   };
-  function openDetail(h) {
-    closeDetail();
-    const l = lane(h);
-    const box = el('aside', { class: 'fd-panel flow-detail', role: 'dialog', 'aria-label': `Detail of frame ${h.n}: ${h.title}` });
-    box.style.setProperty('--c', `var(${l.token})`);
-    const titlebar = el('div', { class: 'fd-titlebar' },
-      el('span', { class: 'fd-title' },
-        el('span', { class: 'frm-no', text: String(h.n) }),
-        el('span', { class: 'flow-detail-ttl' },
-          el('div', { class: 'flow-detail-from', text: `${h.from === h.to ? h.from : `${h.from} → ${h.to}`} · step ${h.step}` }),
-          el('div', { text: h.title }))),
-      el('button', { type: 'button', class: 'fd-btn flow-detail-close', 'aria-label': 'Close', title: 'Close', text: '×' }));
-    titlebar.querySelector('.flow-detail-close').addEventListener('click', closeDetail);
-    box.append(titlebar);
+  // The content shared by the floating pop-out and the persistent step-detail panel: role, plain-English
+  // explanation, and the real request/response (or, for a decision with no call, a line saying so).
+  function buildDetailBody(h) {
     const body = el('div', { class: 'fd-body' });
-    box.append(body);
     if (ROLE[h.kind]) body.append(el('div', { class: 'flow-role', text: `This address is: ${ROLE[h.kind]}` }));
     body.append(el('p', { class: 'flow-detail-say', text: h.say }));
     const d = h.detail;
@@ -153,32 +128,67 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
       }
       if (d.note) body.append(el('p', { class: 'flow-detail-say', text: d.note }));
     }
+    return body;
+  }
+
+  function openDetail(h) {
+    closeDetail();
+    const l = lane(h);
+    const box = el('aside', { class: 'fd-panel flow-detail', role: 'dialog', 'aria-label': `Detail of frame ${h.n}: ${h.title}` });
+    box.style.setProperty('--c', `var(${l.token})`);
+    const titlebar = el('div', { class: 'fd-titlebar' },
+      el('span', { class: 'fd-title' },
+        el('span', { class: 'frm-no', text: String(h.n) }),
+        el('span', { class: 'flow-detail-ttl' },
+          el('div', { class: 'flow-detail-from', text: `${h.from === h.to ? h.from : `${h.from} → ${h.to}`} · step ${h.step}` }),
+          el('div', { text: h.title }))),
+      el('button', { type: 'button', class: 'fd-btn flow-detail-close', 'aria-label': 'Close', title: 'Close', text: '×' }));
+    titlebar.querySelector('.flow-detail-close').addEventListener('click', closeDetail);
+    box.append(titlebar, buildDetailBody(h));
     document.body.append(box);
     detailEl = box;
     detailPanel = floatingPanel(box, { storageKey: 'mcpdemo.flowDetail', onClose: closeDetail });
   }
 
-  function renderChat() {
+  // The far-right panel: the same detail as the pop-out, always visible for whichever step is playing or
+  // selected (or, with nothing picked yet, the most recent one), coloured by that step's own lane.
+  function renderStepDetail() {
     const list = hops();
-    const parts = [];
+    const h = playAt !== null ? list[playAt] : selected !== null ? list.find((x) => x.n === selected) : list[list.length - 1];
+    if (!h) {
+      stepDetailEl.style.removeProperty('--c');
+      stepDetailEl.replaceChildren(el('p', { class: 'flow-empty', text: 'Nothing has happened yet. The first real call lands here once you sign in.' }));
+      return;
+    }
+    const l = lane(h);
+    stepDetailEl.style.setProperty('--c', `var(${l.token})`);
+    const head = el('div', { class: 'step-detail-head' },
+      el('span', { class: 'frm-no', text: String(h.n) }),
+      el('span', { class: 'step-detail-ttl' },
+        el('div', { text: `${h.from === h.to ? h.from : `${h.from} → ${h.to}`} · step ${h.step}` }),
+        el('div', { text: h.title })));
+    stepDetailEl.replaceChildren(head, buildDetailBody(h));
+  }
+
+  // The one action this run is waiting on, if any: shown above the reel, not inside it (each hop already has
+  // its own frame in the reel and its own detail in the step-detail panel, so this is status, not a log).
+  function renderStatus() {
+    const list = hops();
     const needUrl = isPlaceholderMcpUrl(inputs.mcpUrl.value);
+    let row = null;
     if (!list.length) {
-      parts.push(note(needUrl
+      row = note(needUrl
         ? 'Hi. I am a demo client with no registration. Put the MCP address of a gateway door in the Connection panel, leave OAuth Client ID empty, then sign in.'
         : 'Ready. The MCP address is set and the Client ID is empty, so I will use my own document. Sign in when you are ready.',
-      button('Sign in', () => startSignIn(), needUrl, true)));
-    } else {
-      list.forEach((h, i) => parts.push(bubble(h, i)));
-      if (playAt === null) {
-        if (!authed()) {
-          parts.push(note('Waiting for the sign-in to finish.', button('Sign in again', () => startSignIn(), false, true)));
-        } else if (!list.some((h) => h.kind.startsWith('refuse-'))) {
-          const b = button('Try the two refusals', (e) => runRefusals(e.currentTarget));
-          parts.push(note('Signed in and listing tools. Next, two requests that must fail.', b));
-        }
+      button('Sign in', () => startSignIn(), needUrl, true));
+    } else if (playAt === null) {
+      if (!authed()) {
+        row = note('Waiting for the sign-in to finish.', button('Sign in again', () => startSignIn(), false, true));
+      } else if (!list.some((h) => h.kind.startsWith('refuse-'))) {
+        row = note('Signed in and listing tools. Next, two requests that must fail.', button('Try the two refusals', (e) => runRefusals(e.currentTarget)));
       }
     }
-    chatEl.replaceChildren(...parts);
+    reelStatusEl.replaceChildren(...(row ? [row] : []));
   }
 
   function renderReel() {
@@ -198,7 +208,7 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
       const top = el('div', { class: 'frm-top' }, el('span', { class: 'frm-no', text: String(h.n) }), el('span', { text: h.from === h.to ? h.from : `${h.from} → ${h.to}` }), chip(`step ${h.step}`), chip(h.status, h.tone));
       if (now) top.append(el('span', { class: 'frm-now', text: 'Now playing' }));
       frame.append(top, el('div', { class: 'frm-ttl', text: h.title }), el('div', { class: 'frm-fact', text: h.fact }));
-      const pick = () => { selected = h.n; renderedKey = ''; render(); chatEl.querySelector(`[data-n="${h.n}"]`)?.scrollIntoView({ block: 'nearest' }); openDetail(h); };
+      const pick = () => { selected = h.n; renderedKey = ''; render(); openDetail(h); };
       frame.addEventListener('click', pick);
       frame.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
       kids.push(frame);
@@ -232,14 +242,11 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
     const list = hops();
     const key = JSON.stringify([list.map((h) => [h.n, h.kind, h.status, h.fact, h.say]), authed(), playAt, selected, Boolean(timer), isPlaceholderMcpUrl(inputs.mcpUrl.value), Boolean(last?.cimdDocumentUrl)]);
     if (key === renderedKey) return;
-    const before = chatEl.parentElement?.scrollTop ?? 0;
-    const grew = list.length !== Number(renderedKey ? JSON.parse(renderedKey)[0].length : -1);
     renderedKey = key;
-    renderChat();
+    renderStatus();
     renderReel();
     renderStepper();
-    const scroller = chatEl.parentElement;
-    if (scroller) scroller.scrollTop = grew && playAt === null && selected === null ? scroller.scrollHeight : before;
+    renderStepDetail();
   }
 
   function stop() { if (timer) { clearInterval(timer); timer = null; } }
@@ -254,7 +261,7 @@ export function mountFlow({ api, startSignIn, refreshTools, inputs }) {
       if (playAt >= hops().length) { stop(); playAt = null; selected = null; } else { selected = hops()[playAt].n; }
       renderedKey = '';
       render();
-      chatEl.querySelector(`[data-n="${selected}"]`)?.scrollIntoView({ block: 'nearest' });
+      reelEl.querySelector(`[data-n="${selected}"]`)?.scrollIntoView({ block: 'nearest' });
     }, speed);
     renderedKey = '';
     render();

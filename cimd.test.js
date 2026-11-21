@@ -259,7 +259,7 @@ test('the refusal probes ask the door and report what it says; no document means
   }
 });
 
-test('the page has the six numbered steps, the flow chat, the vertical reel and the raw events folded away', async () => {
+test('the page has the six numbered steps, the vertical reel, a persistent step-detail panel and the raw events folded away', async () => {
   await withApp('', async (port) => {
     const get = (p) => new Promise((resolve, reject) => {
       http.get({ host: '127.0.0.1', port, path: p, headers: { host: `127.0.0.1:${port}` } }, (res) => {
@@ -268,7 +268,8 @@ test('the page has the six numbered steps, the flow chat, the vertical reel and 
     });
     const html = (await get('/')).text;
     assert.equal((html.match(/class="st-n"/g) || []).length, 6, 'six numbered steps');
-    for (const id of ['stepper', 'flowChat', 'reel', 'reelRun', 'reelSpeed']) assert.match(html, new RegExp(`id="${id}"`));
+    for (const id of ['stepper', 'reelStatus', 'reel', 'reelRun', 'reelSpeed', 'stepDetail']) assert.match(html, new RegExp(`id="${id}"`));
+    assert.ok(!html.includes('id="flowChat"'), 'the per-hop narration bubbles are gone: the reel plus the step-detail panel carry the run');
     assert.match(html, /<details class="raw">\s*<summary>Raw events<\/summary>\s*<pre id="eventLog"/, 'the raw dump is folded away, not the main view');
     assert.ok(!html.includes('Live Relay'), 'the old dump heading is gone');
     assert.equal((await get('/flow.js')).status, 200);

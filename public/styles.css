@@ -140,8 +140,19 @@ button.primary:disabled {
 
 /* The side columns scroll as page regions, so full-view JSON panes (Rule 24) are never clipped by the fixed-height layout. */
 .sidebar,
-.inspector {
+.inspector,
+.detail {
   overflow-y: auto;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reel-status:empty {
+  display: none;
 }
 
 h2 {
@@ -211,12 +222,6 @@ pre {
    The page-wide `button { width: 100% }` must not stretch the pane's Form | JSON toggle. */
 .jsonbox__toggle button {
   width: auto;
-}
-
-.chatPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .chatMessages {
@@ -354,9 +359,6 @@ details summary {
 @media (max-width: 1100px) { .stepper ol { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* One scroller holds the flow chat and the older system bubbles. */
-.chatScroll { flex: 1; min-height: 0; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
-.chatScroll .chatMessages { flex: none; overflow: visible; border: 0; padding: 0; background: transparent; }
-.flowChat { display: grid; gap: 12px; }
 .flow-msg { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: .65rem; }
 .flow-msg.faded { opacity: .4; }
 .flow-msg.sel .flow-bub { outline: 2px solid var(--select); outline-offset: 2px; }
@@ -407,6 +409,13 @@ details.raw { margin-top: .8rem; } details.raw summary { cursor: pointer; font-w
 .flow-detail .fd-titlebar { border-radius: 8px 8px 0 0; }
 .flow-detail-head { display: flex; align-items: center; gap: .7rem; }
 .flow-detail-ttl { flex: 1; font-weight: 700; font-size: 1.05rem; } .flow-detail-from { font-size: .8rem; color: var(--c); font-weight: 700; }
+/* The persistent step-detail panel (far right): the same request/response content as the pop-out, always on
+   screen for whichever step is current or selected, so the reel's own steps never need a click to read. */
+.step-detail { border-top: 5px solid var(--c); padding-top: .7rem; }
+.step-detail-head { display: flex; align-items: center; gap: .7rem; margin-bottom: .2rem; }
+.step-detail-ttl { flex: 1; min-width: 0; }
+.step-detail-ttl > div:first-child { font-size: .8rem; color: var(--c); font-weight: 700; }
+.step-detail-ttl > div:last-child { font-weight: 700; font-size: 1.05rem; }
 .flow-detail-say { margin: .5rem 0; font-size: .95rem; color: var(--text-body); }
 .flow-sec h3 { margin: .7rem 0 .3rem; font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .flow-call { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; }
