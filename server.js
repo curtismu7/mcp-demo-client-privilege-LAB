@@ -8,7 +8,7 @@ import { shelfInfo } from './shelfLink.js';
 import { hostAllowed, isLoopbackName, labAllowedHosts, parseHost, writeAllowed } from './safety.js';
 import { gatewayMcpUrl } from './mcpUrl.js';
 import { cimdClientIdUrl, clientDocument, serverSupportsCimd, setupGuideUrl } from './cimd.js';
-import { createFlow, redactBody } from './flow.js';
+import { createFlow, redactBody, redactValue } from './flow.js';
 
 // Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
 // LLM_API_KEY wins; HOSTED_LLM_VIRTUAL_KEY (the shared settings file's name for the hosted
@@ -699,14 +699,14 @@ async function handleListTools(req, res) {
     }
     state.tools = data.result?.tools || [];
     flow.upsert('tools', { lane: 'mcp', from: 'Client', to: 'MCP server', step: 5, title: 'Lists the tools', fact: `POST ${new URL(state.config.mcpUrl).pathname}  tools/list  →  ${state.tools.length} ${state.tools.length === 1 ? 'tool' : 'tools'}`, status: 'OK', tone: 'ok', say: state.tools.length ? `Tools: ${state.tools.map((t) => t.name).join(', ')}.` : 'The server returned no tools.',
-      detail: { request: { method: 'POST', url: state.config.mcpUrl, headers: { authorization: 'Bearer [redacted]' }, body: { jsonrpc: '2.0', method: 'tools/list', params: {} } }, response: { status: 200, body: { result: { tools: state.tools.map((t) => ({ name: t.name, description: t.description })) } } } } });
+      detail: { request: { method: 'POST', url: state.config.mcpUrl, headers: { authorization: `Bearer ${redactValue(state.oauth.accessToken)}` }, body: { jsonrpc: '2.0', method: 'tools/list', params: {} } }, response: { status: 200, body: { result: { tools: state.tools.map((t) => ({ name: t.name, description: t.description })) } } } } });
     json(res, 200, { tools: state.tools });
   } catch (error) {
     // Signed in but refused: that is a result worth showing, once, on the run. Before sign-in there is nothing to report.
     if (state.oauth.accessToken) {
       const status = (error.message.match(/\b(\d{3})\b/) || [])[1] || 'error';
       flow.upsert('tools', { lane: 'mcp', from: 'Client', to: 'MCP server', step: 5, title: 'Tool list refused', fact: `POST ${new URL(state.config.mcpUrl).pathname}  tools/list  →  ${status}`, status: `Refused ${status}`, tone: 'bad', say: `The gateway refused the tools call (${error.message.trim()}). The client was accepted and the user signed in, but this call was not allowed.`,
-        detail: { request: { method: 'POST', url: state.config.mcpUrl, headers: { authorization: 'Bearer [redacted]' }, body: { jsonrpc: '2.0', method: 'tools/list', params: {} } }, response: { status: Number(status) || undefined, body: error.message.trim() } } });
+        detail: { request: { method: 'POST', url: state.config.mcpUrl, headers: { authorization: `Bearer ${redactValue(state.oauth.accessToken)}` }, body: { jsonrpc: '2.0', method: 'tools/list', params: {} } }, response: { status: Number(status) || undefined, body: error.message.trim() } } });
     }
     resetMcpRuntimeState();
     emitEvent('error', { scope: 'tools_list', message: error.message });
