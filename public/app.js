@@ -467,3 +467,53 @@ fetch('/api/shelf', { credentials: 'omit', headers: { Accept: 'application/json'
     if (existing) existing.replaceWith(a); else { const row = document.querySelector('.top-menu__row'); if (row) row.appendChild(a); }
   })
   .catch(() => { /* stay hidden: no shelf, no button */ });
+
+// Draggable column dividers: the left (Connection) and right (Step detail) panels resize by dragging,
+// and each width persists to localStorage so the page keeps the owner's layout.
+(() => {
+  const layout = document.querySelector('.layout');
+  if (!layout) return;
+  const saved = localStorage.getItem('mdc.cols');
+  if (saved) {
+    try {
+      const { left, right } = JSON.parse(saved);
+      if (left) layout.style.setProperty('--left-w', `${left}px`);
+      if (right) layout.style.setProperty('--right-w', `${right}px`);
+    } catch { /* corrupt value: keep defaults */ }
+  }
+  const clamp = (px, min) => Math.max(min, Math.min(Math.floor(window.innerWidth * 0.6), px));
+  let active = null;
+  document.querySelectorAll('.col-handle').forEach((h) => {
+    h.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      active = h.dataset.side;
+      h.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!active) return;
+    e.preventDefault();
+    const rect = layout.getBoundingClientRect();
+    if (active === 'left') {
+      const w = clamp(e.clientX - rect.left, 200);
+      layout.style.setProperty('--left-w', `${w}px`);
+    } else {
+      const w = clamp(rect.right - e.clientX, 240);
+      layout.style.setProperty('--right-w', `${w}px`);
+    }
+  });
+  window.addEventListener('pointerup', () => {
+    if (!active) return;
+    active = null;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.querySelectorAll('.col-handle.dragging').forEach((h) => h.classList.remove('dragging'));
+    const cs = getComputedStyle(layout);
+    localStorage.setItem('mdc.cols', JSON.stringify({
+      left: parseFloat(cs.getPropertyValue('--left-w')) || undefined,
+      right: parseFloat(cs.getPropertyValue('--right-w')) || undefined,
+    }));
+  });
+})();
