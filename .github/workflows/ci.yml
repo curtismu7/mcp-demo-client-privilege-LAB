@@ -25,7 +25,7 @@ jobs:
           npm install
           npm test
       # The vendored shared stylesheet must match the hash pinned when it was last re-vendored.
-      - run: bash scripts/check-ui-standard.sh
+      - run: STANDALONE_UI_CANONICAL_URL=https://raw.githubusercontent.com/curtismu7/AI-DEMO-Standalone/header-standard-2026-11-24/shared/standalone-ui.css bash scripts/check-ui-standard.sh
 
   # The Dockerfile copies server files by name, so build the image and start it: a module missing from the COPY line
   # (mcpUrl.js, 2026-11-15) crashes the container while every unit test passes.
