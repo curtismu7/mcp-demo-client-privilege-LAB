@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="./json/JsonPane.css" />
     <link rel="stylesheet" href="./floating-dialog/floating-dialog.css" />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./run-observability/run-observability.css" />
     <script>
       (function () {
         var t = localStorage.getItem("mcpdcp.theme");
@@ -227,6 +228,7 @@
             <button id="callToolBtn" type="button">Call Tool</button>
           </div>
           <div id="toolResult"></div>
+          <div id="runObsTool" aria-live="polite"></div>
 
           <h3>Local LLM (direct)</h3>
           <textarea id="llmPrompt" aria-label="LLM prompt">Suggest the best tool call for listing applications.</textarea>
