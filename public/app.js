@@ -1,5 +1,6 @@
 import { showJson } from './jsonPane.js';
 import { mountFlow } from './flow.js';
+import { mountPanel, headOf } from './runObsPanel.js';
 import { isPlaceholderMcpUrl } from './mcpUrlCheck.js';
 import { MCP_PRESETS, DEFAULT_PRESET_ID, presetForUrl } from './presets.js';
 
@@ -7,6 +8,7 @@ import { MCP_PRESETS, DEFAULT_PRESET_ID, presetForUrl } from './presets.js';
 const HOT = ['authenticated', 'warning', 'isError', 'suggested_tools'];
 
 const els = {
+  runObsTool: document.querySelector('#runObsTool'),
   mcpPreset: document.querySelector('#mcpPreset'),
   mcpUrl: document.querySelector('#mcpUrl'),
   clientId: document.querySelector('#clientId'),
@@ -36,6 +38,8 @@ const els = {
   sendChatBtn: document.querySelector('#sendChatBtn'),
   chatThinking: document.querySelector('#chatThinking')
 };
+
+const runObsTool = mountPanel(els.runObsTool);
 
 const uiState = {
   tools: [],
@@ -289,6 +293,7 @@ async function sendDemoChat() {
         suggested_tools: data.suggested_tools || [],
         steps: data.steps || []
       });
+      runObsTool.set(headOf(data));
       if (Array.isArray(data.tools)) {
         renderTools(data.tools);
         uiState.authenticated = true;
@@ -297,6 +302,7 @@ async function sendDemoChat() {
     }
   } catch (error) {
     appendChat('assistant', `Error: ${error.message}`);
+    runObsTool.set(null);
   } finally {
     setThinking(false);
   }
@@ -388,8 +394,10 @@ els.callToolBtn.addEventListener('click', async () => {
       body: { name: els.toolSelect.value, arguments: args }
     });
     setJson(els.toolResult, data, 'Tool result');
+    runObsTool.set(headOf(data));
   } catch (error) {
     setJson(els.toolResult, { error: error.message }, 'Tool result');
+    runObsTool.set(null);
   }
 });
 
