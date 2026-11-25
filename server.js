@@ -22,6 +22,13 @@ const LAB_HOSTS = labAllowedHosts(process.env.LAB_ALLOWED_HOSTS);
 
 const flow = createFlow();
 
+import { createRunLog, runEvents, recordOf, reportFailure, runField, NO_RUN_BEGAN, NO_LONGER_KEPT } from './runObs.js';
+import { RunObsError } from './runObservability.js';
+
+const runLog = createRunLog();
+// The relay hops of the turn in flight (fetchMcp appends; the handler that started the turn splices them out).
+const turnHops = [];
+
 const state = {
   config: {
     mcpUrl: 'https://mcp-gateway.example.invalid/mcp/',
@@ -129,6 +136,7 @@ async function fetchMcp(pathname, body, withAuth = true) {
     url: targetUrl.toString(),
     body
   });
+  turnHops.push({ direction: 'client->mcp', method: 'POST', status: undefined });
 
   const response = await fetch(targetUrl, {
     method: 'POST',
@@ -152,6 +160,7 @@ async function fetchMcp(pathname, body, withAuth = true) {
     });
   }
 
+  turnHops.push({ direction: 'mcp->client', status: response.status });
   emitEvent('relay', {
     direction: 'mcp->client',
     status: response.status,
@@ -728,10 +737,12 @@ async function handleCallTool(req, res) {
       }
     };
     const data = await fetchMcp(null, rpc, true);
-    json(res, 200, data);
+    const obsId = runLog.mock(() => runEvents({ kind: 'tools-call', steps: [], hops: turnHops.splice(0), who: state.oauth.accessToken ? 'authenticated (this client holds an access token)' : 'not authenticated', scopes: String(state.config.scopes || '').split(/\s+/).filter(Boolean) }), { source: 'mock' });
+    json(res, 200, { ...data, ...(obsId ? { obs: { id: obsId } } : { obs: null, obsNote: NO_RUN_BEGAN }) });
   } catch (error) {
     emitEvent('error', { scope: 'tools_call', message: error.message });
-    json(res, 500, { error: error.message });
+    const obsId = runLog.mock(() => runEvents({ kind: 'tools-call', steps: [], hops: turnHops.splice(0), error: error.message, who: 'not authenticated', scopes: [] }), { source: 'mock' });
+    json(res, 500, { error: error.message, ...(obsId ? { obs: { id: obsId } } : { obs: null, obsNote: NO_RUN_BEGAN }) });
   }
 }
 
@@ -743,13 +754,15 @@ async function handleRawRpc(req, res) {
       await ensureMcpSessionInitialized();
     }
     const data = await fetchMcp(null, body, true);
-    json(res, 200, data);
+    const obsId = runLog.mock(() => runEvents({ kind: 'raw-rpc', steps: [], hops: turnHops.splice(0), who: state.oauth.accessToken ? 'authenticated (this client holds an access token)' : 'not authenticated', scopes: String(state.config.scopes || '').split(/\s+/).filter(Boolean) }), { source: 'mock' });
+    json(res, 200, { ...data, ...(obsId ? { obs: { id: obsId } } : { obs: null, obsNote: NO_RUN_BEGAN }) });
   } catch (error) {
     if (error.message.includes('401') || error.message.includes('502')) {
       resetMcpRuntimeState();
     }
     emitEvent('error', { scope: 'raw_rpc', message: error.message });
-    json(res, 500, { error: error.message });
+    const obsId = runLog.mock(() => runEvents({ kind: 'raw-rpc', steps: [], hops: turnHops.splice(0), error: error.message, who: 'not authenticated', scopes: [] }), { source: 'mock' });
+    json(res, 500, { error: error.message, ...(obsId ? { obs: { id: obsId } } : { obs: null, obsNote: NO_RUN_BEGAN }) });
   }
 }
 
@@ -809,10 +822,13 @@ async function handleDemoChat(req, res) {
     }
 
     if (!state.config.clientId) {
+      // Rule 27: this early exit is still a turn; record it.
+      const obsId = runLog.mock(() => runEvents({ kind: 'demo-chat', steps: [...steps, 'missing_client_id'], hops: turnHops.splice(0), who: 'not authenticated', scopes: String(state.config.scopes || '').split(/\s+/).filter(Boolean) }), { source: 'mock' });
       json(res, 200, {
         reply:
           'I can connect, but OAuth Client ID is missing. Set Client ID and click Start OAuth to continue.',
-        steps: [...steps, 'missing_client_id']
+        steps: [...steps, 'missing_client_id'],
+        ...(obsId ? { obs: { id: obsId } } : { obs: null, obsNote: NO_RUN_BEGAN })
       });
       return;
     }
@@ -851,10 +867,12 @@ async function handleDemoChat(req, res) {
       authUrl.searchParams.set('state', oauthState);
 
       state.pendingAuth = { oauthState, verifier, tokenUri, redirectUri, scope: effectiveScopes };
+      const obsId = runLog.mock(() => runEvents({ kind: 'demo-chat', steps: [...steps, 'oauth_required'], hops: turnHops.splice(0), who: 'not authenticated', scopes: String(state.config.scopes || '').split(/\s+/).filter(Boolean) }), { source: 'mock' });
       json(res, 200, {
         reply: 'Please complete OAuth login first. I prepared the auth URL.',
         authUrl: authUrl.toString(),
-        steps: [...steps, 'oauth_required']
+        steps: [...steps, 'oauth_required'],
+        ...(obsId ? { obs: { id: obsId } } : { obs: null, obsNote: NO_RUN_BEGAN })
       });
       return;
     }
@@ -911,18 +929,22 @@ async function handleDemoChat(req, res) {
       steps.push(`llm_fallback:${llmError.message}`);
     }
 
+    // Rule 27: the turn's steps and relay hops become the observability record, computed once. The head key is `obs`.
+    const obsId = runLog.mock(() => runEvents({ kind: 'demo-chat', steps, hops: turnHops.splice(0), who: state.oauth.accessToken ? 'authenticated (this client holds an access token)' : 'not authenticated', scopes: String(state.config.scopes || '').split(/\s+/).filter(Boolean) }), { source: 'mock' });
     json(res, 200, {
       reply,
       tools: state.tools.map((t) => ({ name: t.name, description: t.description || '' })),
       suggested_tools: suggestions,
-      steps
+      steps,
+      ...(obsId ? { obs: { id: obsId } } : { obs: null, obsNote: NO_RUN_BEGAN })
     });
   } catch (error) {
     if (error.message.includes('401') || error.message.includes('502')) {
       resetMcpRuntimeState();
     }
     emitEvent('error', { scope: 'demo_chat', message: error.message });
-    json(res, 500, { error: error.message });
+    const obsId = runLog.mock(() => runEvents({ kind: 'demo-chat', steps: [], hops: turnHops.splice(0), error: error.message, who: 'not authenticated', scopes: [] }), { source: 'mock' });
+    json(res, 500, { error: error.message, ...(obsId ? { obs: { id: obsId } } : { obs: null, obsNote: NO_RUN_BEGAN }) });
   }
 }
 
@@ -1040,6 +1062,7 @@ const server = http.createServer(async (req, res) => {
     state.walk = { discovered: false, serverCimd: null, identity: null, redirectUri: null };
     if (state.config.clientId && state.config.clientId === cimdClientIdUrl(LAB_HOSTS)) state.config.clientId = '';
     flow.reset();
+    runLog.clear(); // Reset clears the observability records too (rule 27).
     emitEvent('reset', {});
     json(res, 200, { ok: true });
     return;
@@ -1102,6 +1125,24 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && parsedUrl.pathname === '/api/demo/chat') {
     await handleDemoChat(req, res);
+    return;
+  }
+
+  // The record of one observability run (rule 27), asked for by the id the run's own answer carried.
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/run-record') {
+    const params = new URL(req.url, `http://${req.headers.host}`).searchParams;
+    if ([...params.keys()].some((k) => k !== 'runId')) { json(res, 400, { error: 'unknown_field', detail: 'the query carries a parameter this route does not take' }); return; }
+    const id = params.get('runId');
+    if (typeof id !== 'string' || !/^run-[0-9a-f]{6}-[0-9]{1,9}$/.test(id)) { json(res, 400, { error: 'bad_run_id', detail: 'runId must be the id of one run' }); return; }
+    const run = runLog.get(id);
+    if (!run) { json(res, 200, { record: null, message: NO_LONGER_KEPT }); return; }
+    try {
+      json(res, 200, { record: await recordOf(run) });
+    } catch (err) {
+      if (err instanceof RunObsError) { json(res, err.status, { error: err.code, detail: err.message }); return; }
+      reportFailure('record', err);
+      json(res, 500, { error: 'server_error', detail: "The lab could not build this run's record (the server log says why)." });
+    }
     return;
   }
 
