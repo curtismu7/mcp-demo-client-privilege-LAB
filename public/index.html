@@ -49,6 +49,7 @@
             <button type="button" id="font-minus" aria-label="Smaller text">A−</button>
             <button type="button" id="font-plus" aria-label="Larger text">A+</button>
           </span>
+          <button type="button" id="talktrack-btn" aria-pressed="false" data-testid="talk-track-toggle" title="Show the presenter script alongside the page">Talk track</button>
         </div>
       </nav>
     </header>
@@ -246,6 +247,11 @@
         <div id="stepDetail" class="step-detail" aria-live="polite"></div>
       </aside>
     </main>
+
+    <aside id="talktrack-panel" hidden aria-label="Talk track">
+      <h2>Talk track</h2>
+      <div id="talktrack-body">Loading…</div>
+    </aside>
 
     <script type="module" src="./app.js"></script>
   </body>
