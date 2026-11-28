@@ -988,6 +988,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // The presenter script (docs/talk-track.md), served as plain text for the Talk-track panel.
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/talk-track') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(fs.readFileSync(path.resolve('docs', 'talk-track.md'), 'utf8'));
+    return;
+  }
+
   // Rule 19 (mode toggle): what the UI asks before offering Real. Real (the governed
   // Privilege LLM lane) is available only when the virtual key is set and the configured
   // LLM URL is a lane URL.

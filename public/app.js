@@ -2,6 +2,7 @@ import { showJson } from './jsonPane.js';
 import { mountFlow } from './flow.js';
 import { mountPanel, headOf } from './runObsPanel.js';
 import { isPlaceholderMcpUrl } from './mcpUrlCheck.js';
+import { initTalkTrack } from './talkTrack.js';
 import { MCP_PRESETS, DEFAULT_PRESET_ID, presetForUrl } from './presets.js';
 
 // Keys that matter in this client's payloads: they stand out in both views of every JSON pane (Rule 24).
@@ -525,3 +526,5 @@ fetch('/api/shelf', { credentials: 'omit', headers: { Accept: 'application/json'
     }));
   });
 })();
+
+initTalkTrack();
